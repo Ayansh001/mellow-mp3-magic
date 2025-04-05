@@ -9,7 +9,6 @@ const FileUpload = () => {
   const [isDragging, setIsDragging] = useState(false);
 
   // This function handles file selection through the file input
-  // Modified to fix mobile camera issue by removing "capture" attribute
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -43,7 +42,6 @@ const FileUpload = () => {
     }
   };
 
-  // Updated to ensure better mobile compatibility - removed "capture" attribute
   return (
     <div
       className={`p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center bg-opacity-50 transition-colors ${
@@ -65,7 +63,6 @@ const FileUpload = () => {
           accept="audio/*"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           onChange={handleFileChange}
-          // Removed "capture" attribute that was causing the camera to open on mobile
         />
       </Button>
     </div>
