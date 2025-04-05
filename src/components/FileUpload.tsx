@@ -8,6 +8,7 @@ const FileUpload = () => {
   const { loadAudio } = useAudio();
   const [isDragging, setIsDragging] = useState(false);
 
+  // This function handles file selection through the file input
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -18,6 +19,7 @@ const FileUpload = () => {
     }
   };
 
+  // These functions handle drag and drop functionality
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(true);
@@ -40,6 +42,7 @@ const FileUpload = () => {
     }
   };
 
+  // Updated to ensure better mobile compatibility
   return (
     <div
       className={`p-6 border-2 border-dashed rounded-lg flex flex-col items-center justify-center bg-opacity-50 transition-colors ${
@@ -54,13 +57,14 @@ const FileUpload = () => {
       <p className="text-sm text-muted-foreground mb-4">
         Drag and drop your MP3 here or click to browse
       </p>
-      <Button variant="outline" className="relative">
+      <Button variant="outline" className="relative w-full sm:w-auto">
         Choose File
         <input
           type="file"
           accept="audio/*"
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           onChange={handleFileChange}
+          capture="user" // This helps on mobile devices
         />
       </Button>
     </div>

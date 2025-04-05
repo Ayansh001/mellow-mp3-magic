@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -58,7 +57,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Load vinyl crackle noise
   useEffect(() => {
     const loadVinylNoise = async () => {
       try {
@@ -66,16 +64,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
         
-        // We would ideally have a real vinyl noise file, but for demo purposes we'll create noise
         const ctx = audioContextRef.current;
         const sampleRate = ctx.sampleRate;
         const noiseBuffer = ctx.createBuffer(1, sampleRate * 3, sampleRate);
         const data = noiseBuffer.getChannelData(0);
         
-        // Generate some random noise that resembles vinyl crackle
         for (let i = 0; i < noiseBuffer.length; i++) {
           const noise = Math.random() * 2 - 1;
-          // Make most of the noise very quiet, with occasional pops
           data[i] = noise * (Math.random() > 0.995 ? 0.5 : 0.03);
         }
         
@@ -93,7 +88,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     loadVinylNoise();
   }, [toast]);
 
-  // Handle vinyl crackle effect
   useEffect(() => {
     if (!audioContextRef.current || !isPlaying) return;
 
@@ -126,6 +120,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        if (audioContextRef.current.state === "suspended") {
+          await audioContextRef.current.resume();
+        }
       }
 
       const reader = new FileReader();
@@ -144,7 +142,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             description: "Audio loaded successfully",
           });
           
-          // Stop any currently playing audio
           if (sourceNodeRef.current) {
             sourceNodeRef.current.stop();
             sourceNodeRef.current.disconnect();
@@ -184,48 +181,38 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const playAudio = () => {
     if (!audioContextRef.current || !audioBuffer) return;
     
-    // If context is suspended (browser policy), resume it
     if (audioContextRef.current.state === "suspended") {
       audioContextRef.current.resume();
     }
     
-    // Stop the current source if it exists
     if (sourceNodeRef.current) {
       sourceNodeRef.current.stop();
       sourceNodeRef.current.disconnect();
     }
     
-    // Create new nodes
     sourceNodeRef.current = audioContextRef.current.createBufferSource();
     sourceNodeRef.current.buffer = audioBuffer;
     
-    // Apply playback rate
     sourceNodeRef.current.playbackRate.value = playbackRate;
     
-    // Create gain node
     gainNodeRef.current = audioContextRef.current.createGain();
     
-    // Create filter for lo-fi effect
     biquadFilterRef.current = audioContextRef.current.createBiquadFilter();
     biquadFilterRef.current.type = "lowpass";
     
-    // Apply lo-fi filter if enabled
     if (isLofiMode) {
       biquadFilterRef.current.frequency.value = 3000;
     } else {
-      biquadFilterRef.current.frequency.value = 20000; // Almost no filtering
+      biquadFilterRef.current.frequency.value = 20000;
     }
     
-    // Connect nodes
     sourceNodeRef.current.connect(biquadFilterRef.current);
     biquadFilterRef.current.connect(gainNodeRef.current);
     gainNodeRef.current.connect(audioContextRef.current.destination);
     
-    // Start playback
     sourceNodeRef.current.start(0, pausedTimeRef.current);
     startTimeRef.current = audioContextRef.current.currentTime - pausedTimeRef.current;
     
-    // Update animation frame
     const updatePlaybackPosition = () => {
       if (!audioContextRef.current || !isPlaying) return;
       
@@ -246,7 +233,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     
     requestRef.current = requestAnimationFrame(updatePlaybackPosition);
     
-    // Apply vinyl crackle if enabled
     if (isVinylCrackle && vinylBufferRef.current) {
       vinylGainNodeRef.current = audioContextRef.current.createGain();
       vinylGainNodeRef.current.gain.value = 0.15;
@@ -265,7 +251,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (!audioContextRef.current || !audioBuffer) return;
     
     if (isPlaying) {
-      // Pause audio
       if (sourceNodeRef.current) {
         sourceNodeRef.current.stop();
         sourceNodeRef.current.disconnect();
@@ -282,7 +267,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       
       setIsPlaying(false);
     } else {
-      // Play audio
       playAudio();
       setIsPlaying(true);
     }
@@ -291,7 +275,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const toggleLofiMode = () => {
     setIsLofiMode((prev) => !prev);
     
-    // Apply lo-fi effect immediately if playing
     if (isPlaying && biquadFilterRef.current) {
       const newMode = !isLofiMode;
       biquadFilterRef.current.frequency.value = newMode ? 3000 : 20000;
@@ -305,7 +288,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const updatePlaybackRate = (rate: number) => {
     setPlaybackRate(rate);
     
-    // Apply rate change immediately if playing
     if (isPlaying && sourceNodeRef.current) {
       sourceNodeRef.current.playbackRate.value = rate;
     }
@@ -320,7 +302,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setProgress(time);
     
     if (isPlaying) {
-      // Restart playback from new position
       playAudio();
     }
   };

@@ -5,7 +5,9 @@ import Footer from "@/components/Footer";
 import FileUpload from "@/components/FileUpload";
 import AudioPlayer from "@/components/AudioPlayer";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import SongSearch from "@/components/SongSearch";
 import { useAudio } from "@/context/AudioContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const { fileName } = useAudio();
@@ -24,19 +26,36 @@ const Index = () => {
             Upload your MP3 and transform it into a relaxing lo-fi track with customizable effects
           </p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-            <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FileUpload />
-              </CardContent>
-            </Card>
+          <Tabs defaultValue="upload" className="w-full max-w-4xl">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="upload">Upload File</TabsTrigger>
+              <TabsTrigger value="search">Search Song</TabsTrigger>
+            </TabsList>
             
-            <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <AudioPlayer />
-              </CardContent>
-            </Card>
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+              <TabsContent value="upload" className="mt-0">
+                <Card className="bg-card/80 backdrop-blur-sm">
+                  <CardContent className="p-0">
+                    <FileUpload />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="search" className="mt-0">
+                <Card className="bg-card/80 backdrop-blur-sm">
+                  <CardContent className="p-0">
+                    <SongSearch />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <Card className="bg-card/80 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <AudioPlayer />
+                </CardContent>
+              </Card>
+            </div>
+          </Tabs>
           
           {fileName && (
             <div className="mt-8 text-center">
