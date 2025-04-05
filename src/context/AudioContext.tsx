@@ -1,5 +1,14 @@
+
 import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
+
+type AudioEffects = {
+  isLofiMode: boolean;
+  isVinylCrackle: boolean;
+  isReverbOn: boolean;
+  isSlowedDown: boolean;
+  isJazzMode: boolean;
+};
 
 type AudioContextType = {
   audioBuffer: AudioBuffer | null;
@@ -7,13 +16,11 @@ type AudioContextType = {
   currentTime: number;
   duration: number;
   progress: number;
-  isLofiMode: boolean;
-  isVinylCrackle: boolean;
+  effects: AudioEffects;
   playbackRate: number;
   loadAudio: (file: File) => void;
   togglePlayPause: () => void;
-  toggleLofiMode: () => void;
-  toggleVinylCrackle: () => void;
+  toggleEffect: (effect: keyof AudioEffects) => void;
   setPlaybackRate: (rate: number) => void;
   seekTo: (time: number) => void;
   fileName: string | null;
@@ -29,8 +36,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [isLofiMode, setIsLofiMode] = useState(false);
-  const [isVinylCrackle, setIsVinylCrackle] = useState(false);
+  const [effects, setEffects] = useState<AudioEffects>({
+    isLofiMode: false,
+    isVinylCrackle: false,
+    isReverbOn: false,
+    isSlowedDown: false,
+    isJazzMode: false,
+  });
   const [playbackRate, setPlaybackRate] = useState(0.85);
   const [fileName, setFileName] = useState<string | null>(null);
   
@@ -41,6 +53,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const vinylGainNodeRef = useRef<GainNode | null>(null);
   const vinylSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const vinylBufferRef = useRef<AudioBuffer | null>(null);
+  const reverbGainNodeRef = useRef<GainNode | null>(null);
+  const reverbNodeRef = useRef<ConvolverNode | null>(null);
   const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
@@ -91,7 +105,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!audioContextRef.current || !isPlaying) return;
 
-    if (isVinylCrackle && vinylBufferRef.current) {
+    if (effects.isVinylCrackle && vinylBufferRef.current) {
       if (vinylSourceNodeRef.current) {
         vinylSourceNodeRef.current.stop();
         vinylSourceNodeRef.current.disconnect();
@@ -107,14 +121,34 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       vinylSourceNodeRef.current.connect(vinylGainNodeRef.current);
       vinylGainNodeRef.current.connect(audioContextRef.current.destination);
       vinylSourceNodeRef.current.start(0);
-    } else if (!isVinylCrackle && vinylSourceNodeRef.current) {
+    } else if (!effects.isVinylCrackle && vinylSourceNodeRef.current) {
       vinylSourceNodeRef.current.stop();
       vinylSourceNodeRef.current.disconnect();
       if (vinylGainNodeRef.current) {
         vinylGainNodeRef.current.disconnect();
       }
     }
-  }, [isVinylCrackle, isPlaying]);
+  }, [effects.isVinylCrackle, isPlaying]);
+
+  // Create a simple impulse response for reverb
+  const createImpulseResponse = (ctx: AudioContext, duration: number = 2) => {
+    const sampleRate = ctx.sampleRate;
+    const length = sampleRate * duration;
+    const impulse = ctx.createBuffer(2, length, sampleRate);
+    const leftChannel = impulse.getChannelData(0);
+    const rightChannel = impulse.getChannelData(1);
+    
+    for (let i = 0; i < length; i++) {
+      const n = i / length;
+      // Exponential decay for a natural reverb sound
+      const decay = Math.pow(1 - n, 1.5);
+      
+      leftChannel[i] = (Math.random() * 2 - 1) * decay;
+      rightChannel[i] = (Math.random() * 2 - 1) * decay;
+    }
+    
+    return impulse;
+  };
 
   const loadAudio = async (file: File) => {
     try {
@@ -193,21 +227,65 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     sourceNodeRef.current = audioContextRef.current.createBufferSource();
     sourceNodeRef.current.buffer = audioBuffer;
     
-    sourceNodeRef.current.playbackRate.value = playbackRate;
+    // Apply different playback rate based on the current effects
+    if (effects.isSlowedDown) {
+      sourceNodeRef.current.playbackRate.value = playbackRate * 0.8;
+    } else {
+      sourceNodeRef.current.playbackRate.value = playbackRate;
+    }
     
     gainNodeRef.current = audioContextRef.current.createGain();
     
     biquadFilterRef.current = audioContextRef.current.createBiquadFilter();
     biquadFilterRef.current.type = "lowpass";
     
-    if (isLofiMode) {
+    // Create a connection chain for audio processing
+    let lastNode: AudioNode = sourceNodeRef.current;
+    
+    // Apply lo-fi effect
+    if (effects.isLofiMode) {
       biquadFilterRef.current.frequency.value = 3000;
-    } else {
-      biquadFilterRef.current.frequency.value = 20000;
+      lastNode.connect(biquadFilterRef.current);
+      lastNode = biquadFilterRef.current;
+    } 
+    
+    // Apply jazz mode effect (mid boost)
+    if (effects.isJazzMode) {
+      const midBoostFilter = audioContextRef.current.createBiquadFilter();
+      midBoostFilter.type = "peaking";
+      midBoostFilter.frequency.value = 1500;
+      midBoostFilter.gain.value = 6;
+      midBoostFilter.Q.value = 1;
+      
+      lastNode.connect(midBoostFilter);
+      lastNode = midBoostFilter;
+      
+      // Add a slight low pass filter for warmth
+      const warmthFilter = audioContextRef.current.createBiquadFilter();
+      warmthFilter.type = "lowpass";
+      warmthFilter.frequency.value = 7000;
+      
+      lastNode.connect(warmthFilter);
+      lastNode = warmthFilter;
     }
     
-    sourceNodeRef.current.connect(biquadFilterRef.current);
-    biquadFilterRef.current.connect(gainNodeRef.current);
+    // Apply reverb effect
+    if (effects.isReverbOn) {
+      if (!reverbNodeRef.current) {
+        reverbNodeRef.current = audioContextRef.current.createConvolver();
+        reverbNodeRef.current.buffer = createImpulseResponse(audioContextRef.current);
+      }
+      
+      reverbGainNodeRef.current = audioContextRef.current.createGain();
+      reverbGainNodeRef.current.gain.value = 0.3;
+      
+      lastNode.connect(reverbNodeRef.current);
+      reverbNodeRef.current.connect(reverbGainNodeRef.current);
+      reverbGainNodeRef.current.connect(audioContextRef.current.destination);
+    }
+    
+    // Connect the last node in our processing chain to the gain node
+    lastNode.connect(gainNodeRef.current);
     gainNodeRef.current.connect(audioContextRef.current.destination);
     
     sourceNodeRef.current.start(0, pausedTimeRef.current);
@@ -233,7 +311,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     
     requestRef.current = requestAnimationFrame(updatePlaybackPosition);
     
-    if (isVinylCrackle && vinylBufferRef.current) {
+    if (effects.isVinylCrackle && vinylBufferRef.current) {
       vinylGainNodeRef.current = audioContextRef.current.createGain();
       vinylGainNodeRef.current.gain.value = 0.15;
       
@@ -272,24 +350,37 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const toggleLofiMode = () => {
-    setIsLofiMode((prev) => !prev);
+  const toggleEffect = (effect: keyof AudioEffects) => {
+    setEffects(prev => ({ ...prev, [effect]: !prev[effect] }));
     
-    if (isPlaying && biquadFilterRef.current) {
-      const newMode = !isLofiMode;
-      biquadFilterRef.current.frequency.value = newMode ? 3000 : 20000;
+    if (isPlaying) {
+      // If we're already playing, restart the audio with the new effects
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.stop();
+        sourceNodeRef.current.disconnect();
+      }
+      
+      if (vinylSourceNodeRef.current) {
+        vinylSourceNodeRef.current.stop();
+        vinylSourceNodeRef.current.disconnect();
+      }
+      
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+      
+      setTimeout(() => {
+        playAudio();
+      }, 50);
     }
-  };
-
-  const toggleVinylCrackle = () => {
-    setIsVinylCrackle((prev) => !prev);
   };
 
   const updatePlaybackRate = (rate: number) => {
     setPlaybackRate(rate);
     
     if (isPlaying && sourceNodeRef.current) {
-      sourceNodeRef.current.playbackRate.value = rate;
+      const actualRate = effects.isSlowedDown ? rate * 0.8 : rate;
+      sourceNodeRef.current.playbackRate.value = actualRate;
     }
   };
 
@@ -314,13 +405,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         currentTime,
         duration,
         progress,
-        isLofiMode,
-        isVinylCrackle,
+        effects,
         playbackRate,
         loadAudio,
         togglePlayPause,
-        toggleLofiMode,
-        toggleVinylCrackle,
+        toggleEffect,
         setPlaybackRate: updatePlaybackRate,
         seekTo,
         fileName,

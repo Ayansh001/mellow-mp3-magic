@@ -34,7 +34,7 @@ const Index = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
               <TabsContent value="upload" className="mt-0">
-                <Card className="bg-card/80 backdrop-blur-sm">
+                <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
                   <CardContent className="p-0">
                     <FileUpload />
                   </CardContent>
@@ -42,14 +42,14 @@ const Index = () => {
               </TabsContent>
               
               <TabsContent value="search" className="mt-0">
-                <Card className="bg-card/80 backdrop-blur-sm">
+                <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
                   <CardContent className="p-0">
                     <SongSearch />
                   </CardContent>
                 </Card>
               </TabsContent>
               
-              <Card className="bg-card/80 backdrop-blur-sm">
+              <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
                 <CardContent className="p-0">
                   <AudioPlayer />
                 </CardContent>

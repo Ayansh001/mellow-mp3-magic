@@ -153,3 +153,44 @@
   0% { height: 3px; }
   100% { height: 12px; }
 }
+
+/* New animations */
+@keyframes float-up {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-40px) rotate(10deg);
+    opacity: 0;
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    border-color: rgba(155, 135, 245, 0.1);
+    box-shadow: 0 0 10px rgba(155, 135, 245, 0.1);
+  }
+  50% {
+    border-color: rgba(155, 135, 245, 0.4);
+    box-shadow: 0 0 15px rgba(155, 135, 245, 0.4);
+  }
+}
+
+.animate-float-up {
+  animation: float-up 2s ease-out forwards;
+}
+
+.animate-border-glow {
+  animation: border-glow 3s infinite;
+}
+
+/* Card hover effects */
+.card-hover-effect {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(155, 135, 245, 0.2);
+}

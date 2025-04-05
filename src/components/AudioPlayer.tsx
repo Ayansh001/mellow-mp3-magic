@@ -15,17 +15,15 @@ const AudioPlayer = () => {
     duration,
     progress,
     seekTo,
-    isLofiMode,
-    toggleLofiMode,
-    isVinylCrackle,
-    toggleVinylCrackle,
+    effects,
+    toggleEffect,
     playbackRate,
     setPlaybackRate,
     fileName,
   } = useAudio();
 
   return (
-    <div className="rounded-xl p-6 bg-card shadow-lg border">
+    <div className="rounded-xl p-6 bg-card shadow-lg border border-primary/10 animate-border-glow">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
           <div className="w-12 h-12 mr-4 bg-primary/20 rounded-full flex items-center justify-center vinyl-record animate-spin-slow">
@@ -80,8 +78,8 @@ const AudioPlayer = () => {
           <Label htmlFor="lofi-mode" className="cursor-pointer">Lo-fi Mode</Label>
           <Switch
             id="lofi-mode"
-            checked={isLofiMode}
-            onCheckedChange={toggleLofiMode}
+            checked={effects.isLofiMode}
+            onCheckedChange={() => toggleEffect("isLofiMode")}
             disabled={!fileName}
           />
         </div>
@@ -90,8 +88,38 @@ const AudioPlayer = () => {
           <Label htmlFor="vinyl-crackle" className="cursor-pointer">Vinyl Crackle</Label>
           <Switch
             id="vinyl-crackle"
-            checked={isVinylCrackle}
-            onCheckedChange={toggleVinylCrackle}
+            checked={effects.isVinylCrackle}
+            onCheckedChange={() => toggleEffect("isVinylCrackle")}
+            disabled={!fileName}
+          />
+        </div>
+        
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="reverb" className="cursor-pointer">Reverb</Label>
+          <Switch
+            id="reverb"
+            checked={effects.isReverbOn}
+            onCheckedChange={() => toggleEffect("isReverbOn")}
+            disabled={!fileName}
+          />
+        </div>
+        
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="slowed" className="cursor-pointer">Slowed Down</Label>
+          <Switch
+            id="slowed"
+            checked={effects.isSlowedDown}
+            onCheckedChange={() => toggleEffect("isSlowedDown")}
+            disabled={!fileName}
+          />
+        </div>
+        
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="jazz-mode" className="cursor-pointer">Jazz Mode</Label>
+          <Switch
+            id="jazz-mode"
+            checked={effects.isJazzMode}
+            onCheckedChange={() => toggleEffect("isJazzMode")}
             disabled={!fileName}
           />
         </div>
