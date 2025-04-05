@@ -15,44 +15,56 @@ export function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
-// Function to download a song by name
+// Function to download a song by name from pagalfree.com
 export async function downloadSongByName(songName: string): Promise<File | null> {
   try {
-    // For demonstration purposes, we're using a free music API
-    // In a production app, you would use a proper music service API with appropriate licensing
-    const apiUrl = `https://freesound.org/apiv2/search/text/?query=${encodeURIComponent(songName)}&fields=name,previews&token=YOUR_API_KEY`;
+    // Show that we're attempting to download from pagalfree.com
+    console.log(`Attempting to download "${songName}" from pagalfree.com`);
     
-    // This is a mock implementation to demonstrate the functionality
-    // In a real implementation, you would connect to a music API service
+    // Note: This is a mock implementation as we cannot directly fetch from pagalfree.com
+    // due to CORS restrictions and the need for server-side proxying
     
+    // In a real implementation, you would need a backend server to:
+    // 1. Search pagalfree.com for the song
+    // 2. Extract the download link
+    // 3. Download the file
+    // 4. Return it to the frontend
+    
+    // For demonstration purposes, we'll create a mock audio file
     // Simulating API delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Create a mock audio file for demonstration
-    // In a real app, you would fetch the actual file from an API
+    // Create a mock audio file to simulate the download
+    // In a real app, this would be the actual downloaded MP3 file
     const response = await fetch('/placeholder.svg'); // Using placeholder as mock data
     const blob = await response.blob();
     
     // Create a File object from the blob with the song name
-    const file = new File([blob], `${songName}.mp3`, { type: 'audio/mpeg' });
+    const file = new File([blob], `${songName} - PagalFree.mp3`, { type: 'audio/mpeg' });
+    
+    console.log(`Successfully "downloaded" ${songName} (mock implementation)`);
     
     return file;
     
     /* REAL IMPLEMENTATION WOULD BE LIKE:
-    const response = await fetch(apiUrl);
-    const data = await response.json();
     
-    if (data.results && data.results.length > 0) {
-      const firstResult = data.results[0];
-      const audioUrl = firstResult.previews['preview-hq-mp3'];
-      
-      const audioResponse = await fetch(audioUrl);
-      const audioBlob = await audioResponse.blob();
-      
-      return new File([audioBlob], `${firstResult.name}.mp3`, { type: 'audio/mpeg' });
+    // This would require a backend proxy or serverless function due to CORS restrictions
+    const backendUrl = 'https://your-backend-server.com/api/download-song';
+    
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ songName, source: 'pagalfree.com' })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download song');
     }
-    */
     
+    const songBlob = await response.blob();
+    return new File([songBlob], `${songName} - PagalFree.mp3`, { type: 'audio/mpeg' });
+    
+    */
   } catch (error) {
     console.error("Error downloading song:", error);
     return null;
