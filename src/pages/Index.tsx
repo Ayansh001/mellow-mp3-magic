@@ -8,26 +8,13 @@ import EnhancedAnimatedBackground from "@/components/EnhancedAnimatedBackground"
 import SongSearch from "@/components/SongSearch";
 import { useAudio } from "@/context/AudioContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Analytics from "@/components/Analytics";
 import { useEffect, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { fileName } = useAudio();
   const isMobile = useIsMobile();
-  const [showAnalytics, setShowAnalytics] = useState(false);
   
-  // Show analytics after user has interacted with the app for a while
-  useEffect(() => {
-    if (fileName) {
-      const timer = setTimeout(() => {
-        setShowAnalytics(true);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [fileName]);
-
   return (
     <>
       <EnhancedAnimatedBackground />
@@ -70,15 +57,6 @@ const Index = () => {
                   <EnhancedAudioPlayer />
                 </CardContent>
               </Card>
-              
-              {/* Display analytics if we have a file loaded and enough time has passed */}
-              {showAnalytics && (
-                <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
-                  <CardContent className="p-0">
-                    <Analytics />
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </Tabs>
           

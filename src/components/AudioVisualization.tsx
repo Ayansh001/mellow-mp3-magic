@@ -14,47 +14,75 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
   const { audioElement, isPlaying, effects } = useAudio();
   const { theme } = useTheme();
   
+  // Track current analyzer to avoid recreating on every prop change
+  const analyzerRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  
+  // Create and connect audio nodes once when component mounts or audio element changes
   useEffect(() => {
     if (!audioElement) return;
     
-    // Create AudioContext and analyzers
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaElementSource(audioElement);
+    // Cleanup previous connections
+    if (sourceRef.current) {
+      sourceRef.current.disconnect();
+    }
     
-    // Connect the audio nodes
-    source.connect(analyser);
-    analyser.connect(audioContext.destination);
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+    }
+    
+    // Create new audio context and analyzer
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    analyzerRef.current = audioContextRef.current.createAnalyser();
+    sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
     
     // Configure the analyzer
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    analyzerRef.current.fftSize = 256;
     
-    // Get the canvas and context
+    // Connect the audio nodes
+    sourceRef.current.connect(analyzerRef.current);
+    analyzerRef.current.connect(audioContextRef.current.destination);
+    
+    return () => {
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+      }
+      
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [audioElement]);
+  
+  // Handle visualization rendering
+  useEffect(() => {
+    if (!analyzerRef.current || !canvasRef.current) return;
+    
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const canvasContext = canvas.getContext("2d");
+    const canvasContext = canvas.getContext('2d');
     if (!canvasContext) return;
+    
+    const analyzer = analyzerRef.current;
+    const bufferLength = analyzer.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
     
     // Animation function
     const animate = () => {
+      requestAnimationFrame(animate);
+      
       if (!isPlaying) {
-        // When paused, just draw a flat line or minimal visualization
+        // When paused, just draw a flat line
         canvasContext.clearRect(0, 0, canvas.width, canvas.height);
         canvasContext.fillStyle = theme === "dark" ? "rgba(155, 135, 245, 0.2)" : "rgba(155, 135, 245, 0.5)";
         canvasContext.fillRect(0, canvas.height / 2 - 1, canvas.width, 2);
-        requestAnimationFrame(animate);
         return;
       }
       
-      requestAnimationFrame(animate);
-      analyser.getByteFrequencyData(dataArray);
-      
+      analyzer.getByteFrequencyData(dataArray);
       canvasContext.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Choose visualization type
+      // Draw based on visualization type
       switch (visualizationType) {
         case "bars":
           drawBars(canvasContext, canvas, dataArray, bufferLength);
@@ -70,13 +98,16 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
       }
     };
     
+    // Start animation loop
+    const animationId = requestAnimationFrame(animate);
+    
     // Draw bar visualization
-    const drawBars = (
+    function drawBars(
       ctx: CanvasRenderingContext2D,
       canvas: HTMLCanvasElement,
       dataArray: Uint8Array,
       bufferLength: number
-    ) => {
+    ) {
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let x = 0;
       
@@ -97,15 +128,15 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
         
         x += barWidth + 1;
       }
-    };
+    }
     
     // Draw wave visualization
-    const drawWave = (
+    function drawWave(
       ctx: CanvasRenderingContext2D,
       canvas: HTMLCanvasElement,
       dataArray: Uint8Array,
       bufferLength: number
-    ) => {
+    ) {
       ctx.beginPath();
       
       const sliceWidth = (canvas.width * 1.0) / bufferLength;
@@ -136,15 +167,15 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
       ctx.lineTo(0, canvas.height);
       ctx.fillStyle = theme === "dark" ? "rgba(155, 135, 245, 0.2)" : "rgba(155, 135, 245, 0.2)";
       ctx.fill();
-    };
+    }
     
     // Draw circle visualization
-    const drawCircle = (
+    function drawCircle(
       ctx: CanvasRenderingContext2D,
       canvas: HTMLCanvasElement,
       dataArray: Uint8Array,
       bufferLength: number
-    ) => {
+    ) {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
       const radius = Math.min(centerX, centerY) * 0.8;
@@ -175,17 +206,14 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
         ctx.lineWidth = 2;
         ctx.stroke();
       }
-    };
-    
-    // Start animation
-    animate();
+    }
     
     // Cleanup function
     return () => {
-      source.disconnect();
-      analyser.disconnect();
+      cancelAnimationFrame(animationId);
     };
-  }, [audioElement, isPlaying, visualizationType, theme, effects]);
+    
+  }, [isPlaying, visualizationType, theme, effects]);
   
   // Ensure canvas resizes with parent
   useEffect(() => {

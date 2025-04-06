@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,6 @@ import { toast } from "@/hooks/use-toast";
 import { useUser } from "@/context/UserContext";
 import { useState } from "react";
 import AudioVisualization from "./AudioVisualization";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -40,13 +40,18 @@ const EnhancedAudioPlayer = () => {
     setPlaybackRate,
     fileName,
     audioSrc,
+    savedAudioFiles,
+    loadSavedAudio,
   } = useAudio();
 
-  const { user, isLoggedIn, addToFavorites, addToPlaylist } = useUser();
+  const { user, isLoggedIn, addToFavorites } = useUser();
   
   const [visualizationType, setVisualizationType] = useState<"bars" | "wave" | "circle">("bars");
   const [showVisualization, setShowVisualization] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState("");
+  
+  // Check if current song is in favorites
+  const isFavorited = isLoggedIn && fileName && user?.favorites.includes(fileName);
 
   // Handle download
   const handleDownload = async () => {
@@ -121,7 +126,7 @@ const EnhancedAudioPlayer = () => {
   };
 
   // Handle add to favorites
-  const handleAddToFavorites = () => {
+  const handleToggleFavorite = () => {
     if (!isLoggedIn) {
       toast({
         title: "Login required",
@@ -151,6 +156,7 @@ const EnhancedAudioPlayer = () => {
   const handleAddToPlaylist = () => {
     if (!selectedPlaylist || !fileName) return;
     
+    const { addToPlaylist } = useUser();
     addToPlaylist(selectedPlaylist, {
       title: fileName,
       artist: "Unknown",
@@ -166,6 +172,14 @@ const EnhancedAudioPlayer = () => {
   // Handle visualization type change
   const handleVisualizationChange = (type: "bars" | "wave" | "circle") => {
     setVisualizationType(type);
+  };
+
+  // Handle saved audio selection
+  const handleSavedAudioSelect = (index: number) => {
+    const savedFile = savedAudioFiles[index];
+    if (savedFile) {
+      loadSavedAudio(savedFile.src, savedFile.name);
+    }
   };
 
   return (
@@ -199,6 +213,21 @@ const EnhancedAudioPlayer = () => {
         </Button>
       </div>
 
+      {savedAudioFiles.length > 0 && (
+        <div className="mb-4">
+          <Select onValueChange={(value) => handleSavedAudioSelect(parseInt(value))}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select saved audio" />
+            </SelectTrigger>
+            <SelectContent>
+              {savedAudioFiles.map((file, index) => (
+                <SelectItem key={index} value={index.toString()}>{file.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="mb-6">
         <Slider
           value={[progress]}
@@ -222,7 +251,10 @@ const EnhancedAudioPlayer = () => {
         </Button>
         
         {showVisualization && (
-          <Select value={visualizationType} onValueChange={(value: "bars" | "wave" | "circle") => handleVisualizationChange(value)}>
+          <Select 
+            value={visualizationType} 
+            onValueChange={(value) => handleVisualizationChange(value as "bars" | "wave" | "circle")}
+          >
             <SelectTrigger className="w-[120px] h-8">
               <SelectValue placeholder="Visualization" />
             </SelectTrigger>
@@ -326,12 +358,13 @@ const EnhancedAudioPlayer = () => {
       <div className="flex justify-between mt-4">
         <div className="flex space-x-2">
           <Button 
-            variant="outline" 
+            variant={isFavorited ? "secondary" : "outline"}
             size="icon" 
-            onClick={handleAddToFavorites}
+            onClick={handleToggleFavorite}
             disabled={!fileName || !isLoggedIn}
+            className={isFavorited ? "bg-primary/20" : ""}
           >
-            <Heart className="h-4 w-4" />
+            <Heart className={`h-4 w-4 ${isFavorited ? "fill-current text-primary" : ""}`} />
           </Button>
           
           {isLoggedIn && user?.playlists && user.playlists.length > 0 ? (

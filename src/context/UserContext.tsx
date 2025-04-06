@@ -68,7 +68,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // Login function - simple demo implementation
   const login = (username: string) => {
-    setUser({
+    const newUser = {
       id: generateId(),
       username,
       favorites: [],
@@ -80,8 +80,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isSlowedDown: false,
         isJazzMode: false,
       },
-      theme: "purple",
-    });
+      theme: "purple" as const,
+    };
+    
+    setUser(newUser);
+    localStorage.setItem("user_profile", JSON.stringify(newUser));
   };
 
   // Logout function
@@ -93,25 +96,42 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Add a song to favorites
   const addToFavorites = (songId: string) => {
     if (!user) return;
-    setUser({
+    
+    // Check if the song is already in favorites
+    if (user.favorites.includes(songId)) {
+      // If it is, remove it (toggle behavior)
+      removeFromFavorites(songId);
+      return;
+    }
+    
+    // If not, add it
+    const updatedUser = {
       ...user,
       favorites: [...user.favorites, songId],
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Remove a song from favorites
   const removeFromFavorites = (songId: string) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       favorites: user.favorites.filter(id => id !== songId),
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Create a new playlist
   const createPlaylist = (name: string) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       playlists: [
         ...user.playlists,
@@ -121,13 +141,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           songs: [],
         },
       ],
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Add a song to a playlist
   const addToPlaylist = (playlistId: string, song: { title: string; artist: string; downloadLink?: string }) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       playlists: user.playlists.map(playlist => {
         if (playlist.id === playlistId) {
@@ -138,13 +162,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return playlist;
       }),
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Remove a song from a playlist
   const removeFromPlaylist = (playlistId: string, songIndex: number) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       playlists: user.playlists.map(playlist => {
         if (playlist.id === playlistId) {
@@ -157,28 +185,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return playlist;
       }),
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Update preferred effects
   const updatePreferredEffects = (effects: Partial<UserProfile["preferredEffects"]>) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       preferredEffects: {
         ...user.preferredEffects,
         ...effects,
       },
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   // Set theme
   const setTheme = (theme: UserProfile["theme"]) => {
     if (!user) return;
-    setUser({
+    
+    const updatedUser = {
       ...user,
       theme,
-    });
+    };
+    
+    setUser(updatedUser);
+    localStorage.setItem("user_profile", JSON.stringify(updatedUser));
   };
 
   return (

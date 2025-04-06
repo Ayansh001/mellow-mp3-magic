@@ -1,5 +1,6 @@
+
 import { createContext, useContext, useState, useRef, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 type AudioEffects = {
   isLofiMode: boolean;
@@ -26,6 +27,8 @@ type AudioContextType = {
   audioContext: AudioContext | null;
   audioElement: HTMLAudioElement | null;
   audioSrc: string | null;
+  savedAudioFiles: {name: string, src: string}[];
+  loadSavedAudio: (src: string, name: string) => void;
 };
 
 const AudioPlayerContext = createContext<AudioContextType | undefined>(undefined);
@@ -37,16 +40,46 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [effects, setEffects] = useState<AudioEffects>({
-    isLofiMode: false,
-    isVinylCrackle: false,
-    isReverbOn: false,
-    isSlowedDown: false,
-    isJazzMode: false,
+  const [effects, setEffects] = useState<AudioEffects>(() => {
+    // Load effects from localStorage if available
+    if (typeof window !== "undefined") {
+      const savedEffects = localStorage.getItem("lofi_effects");
+      return savedEffects ? JSON.parse(savedEffects) : {
+        isLofiMode: false,
+        isVinylCrackle: false,
+        isReverbOn: false,
+        isSlowedDown: false,
+        isJazzMode: false,
+      };
+    }
+    return {
+      isLofiMode: false,
+      isVinylCrackle: false,
+      isReverbOn: false,
+      isSlowedDown: false,
+      isJazzMode: false,
+    };
   });
-  const [playbackRate, setPlaybackRate] = useState(0.85);
+  
+  const [playbackRate, setPlaybackRate] = useState(() => {
+    // Load playback rate from localStorage if available
+    if (typeof window !== "undefined") {
+      const savedRate = localStorage.getItem("lofi_playback_rate");
+      return savedRate ? parseFloat(savedRate) : 0.85;
+    }
+    return 0.85;
+  });
+  
   const [fileName, setFileName] = useState<string | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [savedAudioFiles, setSavedAudioFiles] = useState<{name: string, src: string}[]>(() => {
+    // Load saved audio files from localStorage if available
+    if (typeof window !== "undefined") {
+      const savedFiles = localStorage.getItem("lofi_saved_files");
+      return savedFiles ? JSON.parse(savedFiles) : [];
+    }
+    return [];
+  });
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -62,10 +95,38 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
 
+  // Save effects to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem("lofi_effects", JSON.stringify(effects));
+  }, [effects]);
+
+  // Save playback rate to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("lofi_playback_rate", playbackRate.toString());
+  }, [playbackRate]);
+
+  // Save audio files to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem("lofi_saved_files", JSON.stringify(savedAudioFiles));
+  }, [savedAudioFiles]);
+
+  // Initialize audio element
   useEffect(() => {
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
     }
+    
+    // Try to load last played file if available
+    const lastFile = savedAudioFiles[0];
+    if (lastFile && !audioSrc) {
+      setFileName(lastFile.name);
+      setAudioSrc(lastFile.src);
+      if (audioElementRef.current) {
+        audioElementRef.current.src = lastFile.src;
+        audioElementRef.current.load();
+      }
+    }
+    
     return () => {
       if (audioElementRef.current) {
         audioElementRef.current.pause();
@@ -74,6 +135,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Cleanup animation and audio context
   useEffect(() => {
     return () => {
       if (requestRef.current) {
@@ -86,6 +148,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Load vinyl noise for crackling effect
   useEffect(() => {
     const loadVinylNoise = async () => {
       try {
@@ -117,6 +180,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     loadVinylNoise();
   }, [toast]);
 
+  // Toggle vinyl crackle effect
   useEffect(() => {
     if (!audioContextRef.current || !isPlaying) return;
 
@@ -145,6 +209,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [effects.isVinylCrackle, isPlaying]);
 
+  // Create impulse response for reverb effect
   const createImpulseResponse = (ctx: AudioContext, duration: number = 2) => {
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * duration;
@@ -163,6 +228,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     return impulse;
   };
 
+  // Load audio from file
   const loadAudio = async (file: File) => {
     try {
       if (!audioContextRef.current) {
@@ -191,6 +257,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
             audioElementRef.current.src = blobUrl;
             audioElementRef.current.load();
           }
+          
+          // Save to local storage for future use
+          setSavedAudioFiles(prev => {
+            // Remove if already exists to avoid duplicates
+            const filtered = prev.filter(item => item.name !== file.name);
+            // Add new file at the beginning (most recent)
+            return [{ name: file.name, src: blobUrl }, ...filtered].slice(0, 10); // Limit to 10 files
+          });
           
           toast({
             title: "Success!",
@@ -233,6 +307,37 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Load saved audio from localStorage
+  const loadSavedAudio = (src: string, name: string) => {
+    try {
+      setFileName(name);
+      setAudioSrc(src);
+      
+      if (audioElementRef.current) {
+        audioElementRef.current.src = src;
+        audioElementRef.current.load();
+        
+        audioElementRef.current.onloadedmetadata = () => {
+          setDuration(audioElementRef.current?.duration || 0);
+        };
+      }
+      
+      toast({
+        title: "Success!",
+        description: "Loaded saved audio",
+      });
+      
+    } catch (error) {
+      console.error("Error loading saved audio:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load saved audio",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Play audio with effects
   const playAudio = () => {
     if (!audioContextRef.current || !audioBuffer) return;
     
@@ -339,6 +444,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Toggle play/pause
   const togglePlayPause = () => {
     if (!audioContextRef.current || !audioBuffer) return;
     
@@ -364,8 +470,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Toggle audio effects
   const toggleEffect = (effect: keyof AudioEffects) => {
-    setEffects(prev => ({ ...prev, [effect]: !prev[effect] }));
+    setEffects(prev => {
+      const updated = { ...prev, [effect]: !prev[effect] };
+      return updated;
+    });
     
     if (isPlaying) {
       if (sourceNodeRef.current) {
@@ -388,6 +498,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Update playback rate
   const updatePlaybackRate = (rate: number) => {
     setPlaybackRate(rate);
     
@@ -397,6 +508,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Seek to position in audio
   const seekTo = (time: number) => {
     if (!audioContextRef.current || !audioBuffer) return;
     
@@ -429,6 +541,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audioContext: audioContextRef.current,
         audioElement: audioElementRef.current,
         audioSrc,
+        savedAudioFiles,
+        loadSavedAudio,
       }}
     >
       {children}

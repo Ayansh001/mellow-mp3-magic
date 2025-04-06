@@ -6,14 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed 'Tab'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/context/UserContext";
 import { toast } from "@/hooks/use-toast";
-import { AlertCircle, Check, Heart, ListMusic, Palette, LogOut, User as UserIcon, PlusCircle } from "lucide-react";
+import { AlertCircle, Check, Heart, ListMusic, Palette, LogOut, User as UserIcon, PlusCircle, Trash2 } from "lucide-react";
 
 const UserProfile = () => {
-  const { user, isLoggedIn, login, logout, createPlaylist, addToPlaylist, removeFromPlaylist, setTheme } = useUser();
+  const { user, isLoggedIn, login, logout, createPlaylist, addToPlaylist, removeFromPlaylist, setTheme, removeFromFavorites } = useUser();
   const [loginOpen, setLoginOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -64,6 +63,15 @@ const UserProfile = () => {
     toast({
       title: "Playlist created",
       description: `"${newPlaylistName}" has been created`,
+    });
+  };
+
+  // Handle remove from favorites
+  const handleRemoveFavorite = (songId: string) => {
+    removeFromFavorites(songId);
+    toast({
+      title: "Removed from favorites",
+      description: "Song removed from your favorites",
     });
   };
 
@@ -200,7 +208,7 @@ const UserProfile = () => {
               
               {/* Favorites Tab */}
               <TabsContent value="favorites">
-                {user?.favorites.length === 0 ? (
+                {(!user?.favorites || user.favorites.length === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Heart className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p>No favorites added yet</p>
@@ -208,7 +216,20 @@ const UserProfile = () => {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    <p>Your favorite songs will appear here</p>
+                    <ul className="space-y-2">
+                      {user.favorites.map((songId) => (
+                        <li key={songId} className="flex justify-between items-center p-2 bg-card/50 rounded-md">
+                          <span>{songId}</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleRemoveFavorite(songId)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </TabsContent>
@@ -258,5 +279,8 @@ const UserProfile = () => {
     </div>
   );
 };
+
+// Missing label component import
+import { Label } from "@/components/ui/label";
 
 export default UserProfile;
