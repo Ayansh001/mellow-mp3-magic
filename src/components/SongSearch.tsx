@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Search, Download, Music } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -49,10 +48,20 @@ const SongSearch = () => {
       const response = await fetch(`/api/search-song?q=${encodeURIComponent(songName)}`);
       
       if (!response.ok) {
-        throw new Error('Failed to search for songs');
+        throw new Error(`Failed to search for songs: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("API returned invalid response format. Expected JSON.");
       }
       
       const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       setSearchResults(data.results || []);
       
       if (data.results && data.results.length > 0) {
@@ -71,7 +80,7 @@ const SongSearch = () => {
       console.error("Error searching song:", error);
       toast({
         title: "Error",
-        description: "Could not search for songs. Please try again.",
+        description: error instanceof Error ? error.message : "Could not search for songs. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -102,7 +111,7 @@ const SongSearch = () => {
       const response = await fetch(`/api/download-song?url=${encodeURIComponent(song.downloadLink)}`);
       
       if (!response.ok) {
-        throw new Error('Failed to download song');
+        throw new Error(`Failed to download song: ${response.statusText}`);
       }
       
       const blob = await response.blob();
@@ -122,7 +131,7 @@ const SongSearch = () => {
       console.error("Error downloading song:", error);
       toast({
         title: "Error",
-        description: "Could not download the song. Please try again.",
+        description: error instanceof Error ? error.message : "Could not download the song. Please try again.",
         variant: "destructive",
       });
     } finally {
