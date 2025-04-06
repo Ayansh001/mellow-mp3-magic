@@ -24,7 +24,7 @@ export async function GET(request: Request) {
         'Content-Disposition': `attachment; filename="song.mp3"`,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error downloading song: ${error}`);
     return NextResponse.json(
       { error: "Failed to download song", details: error.message },

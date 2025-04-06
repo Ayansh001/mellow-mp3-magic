@@ -1,7 +1,7 @@
 
 // This serverless function searches for songs on PagalFree.com
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { NextResponse } from 'next/server';
 
 // Helper function to extract download links from song pages
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const $ = cheerio.load(response.data);
     
     // Parse search results
-    const songs = [];
+    const songs: any[] = [];
     
     // This selector may need adjustment based on the website's structure
     $('.plist-block').each((index, element) => {
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       query,
       results: songsWithDownloadLinks
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error searching songs: ${error}`);
     return NextResponse.json(
       { error: "Failed to search for songs", details: error.message },
