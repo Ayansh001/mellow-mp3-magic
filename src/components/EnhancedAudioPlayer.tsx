@@ -13,7 +13,7 @@ import {
   Share2, 
   Heart, 
   BarChart2, 
-  WaveSine, 
+  Waves, 
   CircleDashed 
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -235,7 +235,7 @@ const EnhancedAudioPlayer = () => {
               </SelectItem>
               <SelectItem value="wave">
                 <div className="flex items-center">
-                  <WaveSine className="h-4 w-4 mr-2" />
+                  <Waves className="h-4 w-4 mr-2" />
                   Wave
                 </div>
               </SelectItem>
