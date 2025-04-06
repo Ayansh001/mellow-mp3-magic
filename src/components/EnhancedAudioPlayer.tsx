@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import {
   Share2, 
   Heart, 
   BarChart2, 
-  Waveform, 
+  WaveSine, 
   CircleDashed 
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -66,11 +65,9 @@ const EnhancedAudioPlayer = () => {
         description: "Preparing your download",
       });
       
-      // Redirect to the download API route
       const downloadUrl = `/api/download-song?url=${encodeURIComponent(audioSrc)}`;
       window.open(downloadUrl, "_blank");
       
-      // Show success message after a delay
       setTimeout(() => {
         toast({
           title: "Download started",
@@ -98,7 +95,6 @@ const EnhancedAudioPlayer = () => {
       return;
     }
     
-    // Check if Web Share API is available
     if (navigator.share) {
       navigator.share({
         title: `Check out this lo-fi track: ${fileName}`,
@@ -115,7 +111,6 @@ const EnhancedAudioPlayer = () => {
         console.error("Share error:", error);
       });
     } else {
-      // Fallback if Web Share API is not available
       const shareUrl = window.location.href;
       navigator.clipboard.writeText(shareUrl);
       toast({
@@ -145,7 +140,6 @@ const EnhancedAudioPlayer = () => {
       return;
     }
     
-    // Use fileName as a simple ID in this case
     addToFavorites(fileName);
     toast({
       title: "Added to favorites",
@@ -159,7 +153,7 @@ const EnhancedAudioPlayer = () => {
     
     addToPlaylist(selectedPlaylist, {
       title: fileName,
-      artist: "Unknown", // We could parse artist from fileName if structured
+      artist: "Unknown",
       downloadLink: audioSrc,
     });
     
@@ -216,7 +210,6 @@ const EnhancedAudioPlayer = () => {
         />
       </div>
 
-      {/* Visualization toggle button */}
       <div className="flex justify-between items-center mb-4">
         <Button 
           variant="outline" 
@@ -242,7 +235,7 @@ const EnhancedAudioPlayer = () => {
               </SelectItem>
               <SelectItem value="wave">
                 <div className="flex items-center">
-                  <Waveform className="h-4 w-4 mr-2" />
+                  <WaveSine className="h-4 w-4 mr-2" />
                   Wave
                 </div>
               </SelectItem>
@@ -257,14 +250,12 @@ const EnhancedAudioPlayer = () => {
         )}
       </div>
 
-      {/* Audio visualization */}
       {showVisualization && (
         <div className="mb-4">
           <AudioVisualization visualizationType={visualizationType} />
         </div>
       )}
 
-      {/* Effects controls */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="flex items-center justify-between space-x-2">
           <Label htmlFor="lofi-mode" className="cursor-pointer">Lo-fi Mode</Label>
@@ -332,7 +323,6 @@ const EnhancedAudioPlayer = () => {
         <span className="text-xs w-8 text-right">{Math.round(playbackRate * 100)}%</span>
       </div>
 
-      {/* Action buttons */}
       <div className="flex justify-between mt-4">
         <div className="flex space-x-2">
           <Button 

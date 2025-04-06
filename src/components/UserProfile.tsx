@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tab, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Removed 'Tab'
 import { useUser } from "@/context/UserContext";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle, Check, Heart, ListMusic, Palette, LogOut, User as UserIcon, PlusCircle } from "lucide-react";

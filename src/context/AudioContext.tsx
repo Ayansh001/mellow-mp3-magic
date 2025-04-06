@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -25,6 +24,8 @@ type AudioContextType = {
   seekTo: (time: number) => void;
   fileName: string | null;
   audioContext: AudioContext | null;
+  audioElement: HTMLAudioElement | null;
+  audioSrc: string | null;
 };
 
 const AudioPlayerContext = createContext<AudioContextType | undefined>(undefined);
@@ -45,8 +46,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   });
   const [playbackRate, setPlaybackRate] = useState(0.85);
   const [fileName, setFileName] = useState<string | null>(null);
-  
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+
   const audioContextRef = useRef<AudioContext | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const biquadFilterRef = useRef<BiquadFilterNode | null>(null);
@@ -58,6 +61,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!audioElementRef.current) {
+      audioElementRef.current = new Audio();
+    }
+    return () => {
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.src = '';
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -130,7 +145,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [effects.isVinylCrackle, isPlaying]);
 
-  // Create a simple impulse response for reverb
   const createImpulseResponse = (ctx: AudioContext, duration: number = 2) => {
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * duration;
@@ -140,7 +154,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     
     for (let i = 0; i < length; i++) {
       const n = i / length;
-      // Exponential decay for a natural reverb sound
       const decay = Math.pow(1 - n, 1.5);
       
       leftChannel[i] = (Math.random() * 2 - 1) * decay;
@@ -170,6 +183,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           setAudioBuffer(decodedBuffer);
           setDuration(decodedBuffer.duration);
           setFileName(file.name);
+          
+          const blobUrl = URL.createObjectURL(file);
+          setAudioSrc(blobUrl);
+          
+          if (audioElementRef.current) {
+            audioElementRef.current.src = blobUrl;
+            audioElementRef.current.load();
+          }
           
           toast({
             title: "Success!",
@@ -227,7 +248,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     sourceNodeRef.current = audioContextRef.current.createBufferSource();
     sourceNodeRef.current.buffer = audioBuffer;
     
-    // Apply different playback rate based on the current effects
     if (effects.isSlowedDown) {
       sourceNodeRef.current.playbackRate.value = playbackRate * 0.8;
     } else {
@@ -239,17 +259,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     biquadFilterRef.current = audioContextRef.current.createBiquadFilter();
     biquadFilterRef.current.type = "lowpass";
     
-    // Create a connection chain for audio processing
     let lastNode: AudioNode = sourceNodeRef.current;
     
-    // Apply lo-fi effect
     if (effects.isLofiMode) {
       biquadFilterRef.current.frequency.value = 3000;
       lastNode.connect(biquadFilterRef.current);
       lastNode = biquadFilterRef.current;
     } 
     
-    // Apply jazz mode effect (mid boost)
     if (effects.isJazzMode) {
       const midBoostFilter = audioContextRef.current.createBiquadFilter();
       midBoostFilter.type = "peaking";
@@ -260,7 +277,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       lastNode.connect(midBoostFilter);
       lastNode = midBoostFilter;
       
-      // Add a slight low pass filter for warmth
       const warmthFilter = audioContextRef.current.createBiquadFilter();
       warmthFilter.type = "lowpass";
       warmthFilter.frequency.value = 7000;
@@ -269,7 +285,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       lastNode = warmthFilter;
     }
     
-    // Apply reverb effect
     if (effects.isReverbOn) {
       if (!reverbNodeRef.current) {
         reverbNodeRef.current = audioContextRef.current.createConvolver();
@@ -284,7 +299,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       reverbGainNodeRef.current.connect(audioContextRef.current.destination);
     }
     
-    // Connect the last node in our processing chain to the gain node
     lastNode.connect(gainNodeRef.current);
     gainNodeRef.current.connect(audioContextRef.current.destination);
     
@@ -354,7 +368,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setEffects(prev => ({ ...prev, [effect]: !prev[effect] }));
     
     if (isPlaying) {
-      // If we're already playing, restart the audio with the new effects
       if (sourceNodeRef.current) {
         sourceNodeRef.current.stop();
         sourceNodeRef.current.disconnect();
@@ -414,6 +427,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         seekTo,
         fileName,
         audioContext: audioContextRef.current,
+        audioElement: audioElementRef.current,
+        audioSrc,
       }}
     >
       {children}
