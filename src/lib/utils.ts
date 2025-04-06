@@ -28,3 +28,17 @@ export function randomInRange(min: number, max: number): number {
 export function createArray<T>(length: number, mapFn: (index: number) => T): T[] {
   return Array.from({ length }, (_, index) => mapFn(index));
 }
+
+/**
+ * Creates floating hearts for animation
+ */
+export function createFloatingHearts(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: Math.random().toString(),
+    x: 25 + Math.random() * 50, // Random position around the logo
+    y: Math.random() * 20,
+    size: 8 + Math.random() * 8, // Random size between 8-16px
+    duration: 1 + Math.random() * 2,
+    opacity: 0.6 + Math.random() * 0.4
+  }));
+}
