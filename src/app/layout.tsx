@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AudioProvider } from "@/context/AudioContext";
+import { UserProvider } from "@/context/UserContext";
 import "../index.css";
 
 interface RootLayoutProps {
@@ -19,13 +20,15 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ThemeProvider>
-          <AudioProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster />
-              <Sonner />
-            </TooltipProvider>
-          </AudioProvider>
+          <UserProvider>
+            <AudioProvider>
+              <TooltipProvider>
+                {children}
+                <Toaster />
+                <Sonner />
+              </TooltipProvider>
+            </AudioProvider>
+          </UserProvider>
         </ThemeProvider>
       </body>
     </html>

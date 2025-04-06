@@ -1,22 +1,38 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import Header from "@/components/Header";
+import EnhancedHeader from "@/components/EnhancedHeader";
 import Footer from "@/components/Footer";
 import FileUpload from "@/components/FileUpload";
-import AudioPlayer from "@/components/AudioPlayer";
-import AnimatedBackground from "@/components/AnimatedBackground";
+import EnhancedAudioPlayer from "@/components/EnhancedAudioPlayer";
+import EnhancedAnimatedBackground from "@/components/EnhancedAnimatedBackground";
 import SongSearch from "@/components/SongSearch";
 import { useAudio } from "@/context/AudioContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Analytics from "@/components/Analytics";
+import { useEffect, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { fileName } = useAudio();
+  const isMobile = useIsMobile();
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  
+  // Show analytics after user has interacted with the app for a while
+  useEffect(() => {
+    if (fileName) {
+      const timer = setTimeout(() => {
+        setShowAnalytics(true);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [fileName]);
 
   return (
     <>
-      <AnimatedBackground />
+      <EnhancedAnimatedBackground />
       <div className="min-h-screen flex flex-col container max-w-5xl px-4">
-        <Header />
+        <EnhancedHeader />
         
         <main className="flex-1 flex flex-col items-center justify-center py-12">
           <h1 className="text-4xl font-bold text-center mb-2">
@@ -32,7 +48,7 @@ const Index = () => {
               <TabsTrigger value="search">Search Song</TabsTrigger>
             </TabsList>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+            <div className={`grid grid-cols-1 ${isMobile ? "" : "md:grid-cols-2"} gap-8 w-full`}>
               <TabsContent value="upload" className="mt-0">
                 <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
                   <CardContent className="p-0">
@@ -51,9 +67,18 @@ const Index = () => {
               
               <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
                 <CardContent className="p-0">
-                  <AudioPlayer />
+                  <EnhancedAudioPlayer />
                 </CardContent>
               </Card>
+              
+              {/* Display analytics if we have a file loaded and enough time has passed */}
+              {showAnalytics && (
+                <Card className="bg-card/80 backdrop-blur-sm border-primary/10 animate-border-glow card-hover-effect">
+                  <CardContent className="p-0">
+                    <Analytics />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </Tabs>
           

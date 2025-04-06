@@ -116,6 +116,11 @@ export default {
                         borderColor: 'rgba(155, 135, 245, 0.4)',
                         boxShadow: '0 0 15px rgba(155, 135, 245, 0.4)'
                     }
+                },
+                'wave': {
+                    '0%': { transform: 'scaleY(1)' },
+                    '50%': { transform: 'scaleY(0.5)' },
+                    '100%': { transform: 'scaleY(1)' }
                 }
 			},
 			animation: {
@@ -125,7 +130,10 @@ export default {
 				'pulse-slow': 'pulse-slow 4s ease-in-out infinite',
 				'spin-slow': 'spin-slow 8s linear infinite',
                 'float-up': 'float-up 2s ease-out forwards',
-                'border-glow': 'border-glow 3s infinite'
+                'border-glow': 'border-glow 3s infinite',
+                'wave-slow': 'wave 1.5s ease-in-out infinite',
+                'wave-med': 'wave 1.2s ease-in-out infinite',
+                'wave-fast': 'wave 0.9s ease-in-out infinite'
 			}
 		}
 	},
