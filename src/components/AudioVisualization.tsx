@@ -18,33 +18,14 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   
-  // Create and connect audio nodes once when component mounts or audio element changes
+  // Create and connect audio nodes when component mounts or audio element changes
   useEffect(() => {
     if (!audioElement) return;
     
-    // Cleanup previous connections
-    if (sourceRef.current) {
-      sourceRef.current.disconnect();
-    }
-    
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-    }
-    
-    // Create new audio context and analyzer
-    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    analyzerRef.current = audioContextRef.current.createAnalyser();
-    sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-    
-    // Configure the analyzer
-    analyzerRef.current.fftSize = 256;
-    
-    // Connect the audio nodes
-    sourceRef.current.connect(analyzerRef.current);
-    analyzerRef.current.connect(audioContextRef.current.destination);
-    
-    return () => {
+    // Cleanup function to handle component unmounting
+    const cleanup = () => {
       if (sourceRef.current) {
         sourceRef.current.disconnect();
       }
@@ -52,8 +33,61 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
+      
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
+    
+    // Try to create audio context
+    try {
+      // Cleanup previous connections
+      cleanup();
+      
+      // Create new audio context and analyzer
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyzerRef.current = audioContextRef.current.createAnalyser();
+      
+      // Configure the analyzer
+      analyzerRef.current.fftSize = 256;
+      
+      // Connect to audio element if playing
+      if (isPlaying) {
+        sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
+        sourceRef.current.connect(analyzerRef.current);
+        analyzerRef.current.connect(audioContextRef.current.destination);
+      }
+    } catch (error) {
+      console.error("Error setting up audio visualization:", error);
+    }
+    
+    // Cleanup on unmount
+    return cleanup;
   }, [audioElement]);
+  
+  // Handle connecting/disconnecting based on playback state
+  useEffect(() => {
+    if (!audioElement || !audioContextRef.current) return;
+    
+    const tryConnect = () => {
+      // Only create new connections if not already connected
+      if (!sourceRef.current && isPlaying) {
+        try {
+          sourceRef.current = audioContextRef.current!.createMediaElementSource(audioElement);
+          sourceRef.current.connect(analyzerRef.current!);
+          analyzerRef.current!.connect(audioContextRef.current!.destination);
+        } catch (error) {
+          console.error("Error connecting audio nodes:", error);
+        }
+      }
+    };
+    
+    tryConnect();
+    
+    // No explicit disconnect needed as that would break audio playback
+    // We'll handle cleanup in the main audioElement effect
+    
+  }, [isPlaying, audioElement]);
   
   // Handle visualization rendering
   useEffect(() => {
@@ -69,7 +103,7 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
     
     // Animation function
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationFrameRef.current = requestAnimationFrame(animate);
       
       if (!isPlaying) {
         // When paused, just draw a flat line
@@ -99,7 +133,7 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
     };
     
     // Start animation loop
-    const animationId = requestAnimationFrame(animate);
+    animationFrameRef.current = requestAnimationFrame(animate);
     
     // Draw bar visualization
     function drawBars(
@@ -210,7 +244,9 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
     
     // Cleanup function
     return () => {
-      cancelAnimationFrame(animationId);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
     
   }, [isPlaying, visualizationType, theme, effects]);

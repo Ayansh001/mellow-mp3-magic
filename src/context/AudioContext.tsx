@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -94,6 +93,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false); // Add this ref to track playing state
 
   // Save effects to localStorage when they change
   useEffect(() => {
@@ -114,6 +114,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
+      
+      // Add event listeners to audio element
+      audioElementRef.current.addEventListener('timeupdate', handleTimeUpdate);
+      audioElementRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audioElementRef.current.addEventListener('ended', handleEnded);
     }
     
     // Try to load last played file if available
@@ -127,13 +132,67 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
+    // Initialize Web Audio API context
+    if (typeof window !== 'undefined' && !audioContextRef.current) {
+      try {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } catch (error) {
+        console.error("Failed to create audio context:", error);
+      }
+    }
+    
     return () => {
+      // Clean up event listeners
       if (audioElementRef.current) {
+        audioElementRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+        audioElementRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audioElementRef.current.removeEventListener('ended', handleEnded);
         audioElementRef.current.pause();
         audioElementRef.current.src = '';
       }
+      
+      // Cancel any animation frames
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
+      
+      // Close audio context
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, []);
+
+  // Handle time update event from audio element
+  const handleTimeUpdate = () => {
+    if (!audioElementRef.current || !isPlaying) return;
+    
+    const currentTime = audioElementRef.current.currentTime;
+    const duration = audioElementRef.current.duration || 0;
+    
+    setCurrentTime(currentTime);
+    setProgress((currentTime / duration) * 100);
+  };
+
+  // Handle loaded metadata event from audio element
+  const handleLoadedMetadata = () => {
+    if (!audioElementRef.current) return;
+    
+    const duration = audioElementRef.current.duration || 0;
+    setDuration(duration);
+  };
+
+  // Handle ended event from audio element
+  const handleEnded = () => {
+    setIsPlaying(false);
+    isPlayingRef.current = false;
+    setCurrentTime(0);
+    setProgress(0);
+    
+    if (audioElementRef.current) {
+      audioElementRef.current.currentTime = 0;
+    }
+  };
 
   // Cleanup animation and audio context
   useEffect(() => {
@@ -147,6 +206,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, []);
+
+  // Sync isPlayingRef with isPlaying state
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   // Load vinyl noise for crackling effect
   useEffect(() => {
@@ -209,6 +273,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [effects.isVinylCrackle, isPlaying]);
 
+  // Apply effects when they change
+  useEffect(() => {
+    if (!isPlaying || !audioElementRef.current) return;
+
+    // Apply playback rate
+    const actualRate = effects.isSlowedDown ? playbackRate * 0.8 : playbackRate;
+    audioElementRef.current.playbackRate = actualRate;
+    
+    // Since we're using the built-in audio element now,
+    // we'll need to manage other effects differently
+    // (future enhancement would be to connect audio element to Web Audio API
+    // for more advanced effects processing)
+  }, [effects, playbackRate, isPlaying]);
+
   // Create impulse response for reverb effect
   const createImpulseResponse = (ctx: AudioContext, duration: number = 2) => {
     const sampleRate = ctx.sampleRate;
@@ -231,6 +309,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Load audio from file
   const loadAudio = async (file: File) => {
     try {
+      // Initialize audio context if needed
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         
@@ -239,24 +318,34 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // Create file reader to read file
       const reader = new FileReader();
       
       reader.onload = async (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer;
-          const decodedBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer);
           
+          // Decode audio data for buffer processing
+          const decodedBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer);
           setAudioBuffer(decodedBuffer);
           setDuration(decodedBuffer.duration);
           setFileName(file.name);
           
+          // Create blob URL for HTML Audio element
           const blobUrl = URL.createObjectURL(file);
           setAudioSrc(blobUrl);
           
+          // Set up audio element with the file
           if (audioElementRef.current) {
             audioElementRef.current.src = blobUrl;
             audioElementRef.current.load();
           }
+          
+          // Reset playback state
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          setCurrentTime(0);
+          setProgress(0);
           
           // Save to local storage for future use
           setSavedAudioFiles(prev => {
@@ -295,6 +384,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         });
       };
       
+      // Start reading the file
       reader.readAsArrayBuffer(file);
       
     } catch (error) {
@@ -310,17 +400,45 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Load saved audio from localStorage
   const loadSavedAudio = (src: string, name: string) => {
     try {
+      // Set file information
       setFileName(name);
       setAudioSrc(src);
       
+      // Reset playback state
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      setCurrentTime(0);
+      setProgress(0);
+      
+      // Set up audio element with saved audio
       if (audioElementRef.current) {
+        audioElementRef.current.pause(); // Ensure previous audio is stopped
         audioElementRef.current.src = src;
         audioElementRef.current.load();
         
+        // Get duration once metadata is loaded
         audioElementRef.current.onloadedmetadata = () => {
           setDuration(audioElementRef.current?.duration || 0);
         };
       }
+      
+      // Also fetch the file as ArrayBuffer to decode for Web Audio API
+      fetch(src)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+          if (audioContextRef.current) {
+            return audioContextRef.current.decodeAudioData(arrayBuffer);
+          }
+          return null;
+        })
+        .then(decodedBuffer => {
+          if (decodedBuffer) {
+            setAudioBuffer(decodedBuffer);
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching saved audio:", error);
+        });
       
       toast({
         title: "Success!",
@@ -337,136 +455,36 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Play audio with effects
-  const playAudio = () => {
-    if (!audioContextRef.current || !audioBuffer) return;
-    
-    if (audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-    
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current.disconnect();
-    }
-    
-    sourceNodeRef.current = audioContextRef.current.createBufferSource();
-    sourceNodeRef.current.buffer = audioBuffer;
-    
-    if (effects.isSlowedDown) {
-      sourceNodeRef.current.playbackRate.value = playbackRate * 0.8;
-    } else {
-      sourceNodeRef.current.playbackRate.value = playbackRate;
-    }
-    
-    gainNodeRef.current = audioContextRef.current.createGain();
-    
-    biquadFilterRef.current = audioContextRef.current.createBiquadFilter();
-    biquadFilterRef.current.type = "lowpass";
-    
-    let lastNode: AudioNode = sourceNodeRef.current;
-    
-    if (effects.isLofiMode) {
-      biquadFilterRef.current.frequency.value = 3000;
-      lastNode.connect(biquadFilterRef.current);
-      lastNode = biquadFilterRef.current;
-    } 
-    
-    if (effects.isJazzMode) {
-      const midBoostFilter = audioContextRef.current.createBiquadFilter();
-      midBoostFilter.type = "peaking";
-      midBoostFilter.frequency.value = 1500;
-      midBoostFilter.gain.value = 6;
-      midBoostFilter.Q.value = 1;
-      
-      lastNode.connect(midBoostFilter);
-      lastNode = midBoostFilter;
-      
-      const warmthFilter = audioContextRef.current.createBiquadFilter();
-      warmthFilter.type = "lowpass";
-      warmthFilter.frequency.value = 7000;
-      
-      lastNode.connect(warmthFilter);
-      lastNode = warmthFilter;
-    }
-    
-    if (effects.isReverbOn) {
-      if (!reverbNodeRef.current) {
-        reverbNodeRef.current = audioContextRef.current.createConvolver();
-        reverbNodeRef.current.buffer = createImpulseResponse(audioContextRef.current);
-      }
-      
-      reverbGainNodeRef.current = audioContextRef.current.createGain();
-      reverbGainNodeRef.current.gain.value = 0.3;
-      
-      lastNode.connect(reverbNodeRef.current);
-      reverbNodeRef.current.connect(reverbGainNodeRef.current);
-      reverbGainNodeRef.current.connect(audioContextRef.current.destination);
-    }
-    
-    lastNode.connect(gainNodeRef.current);
-    gainNodeRef.current.connect(audioContextRef.current.destination);
-    
-    sourceNodeRef.current.start(0, pausedTimeRef.current);
-    startTimeRef.current = audioContextRef.current.currentTime - pausedTimeRef.current;
-    
-    const updatePlaybackPosition = () => {
-      if (!audioContextRef.current || !isPlaying) return;
-      
-      const elapsedTime = audioContextRef.current.currentTime - startTimeRef.current;
-      setCurrentTime(elapsedTime);
-      pausedTimeRef.current = elapsedTime;
-      setProgress(elapsedTime / duration * 100);
-      
-      if (elapsedTime < duration) {
-        requestRef.current = requestAnimationFrame(updatePlaybackPosition);
-      } else {
-        setIsPlaying(false);
-        pausedTimeRef.current = 0;
-        setCurrentTime(0);
-        setProgress(0);
-      }
-    };
-    
-    requestRef.current = requestAnimationFrame(updatePlaybackPosition);
-    
-    if (effects.isVinylCrackle && vinylBufferRef.current) {
-      vinylGainNodeRef.current = audioContextRef.current.createGain();
-      vinylGainNodeRef.current.gain.value = 0.15;
-      
-      vinylSourceNodeRef.current = audioContextRef.current.createBufferSource();
-      vinylSourceNodeRef.current.buffer = vinylBufferRef.current;
-      vinylSourceNodeRef.current.loop = true;
-      
-      vinylSourceNodeRef.current.connect(vinylGainNodeRef.current);
-      vinylGainNodeRef.current.connect(audioContextRef.current.destination);
-      vinylSourceNodeRef.current.start(0);
-    }
-  };
-
   // Toggle play/pause
   const togglePlayPause = () => {
-    if (!audioContextRef.current || !audioBuffer) return;
+    if (!audioElementRef.current || !audioSrc) return;
     
     if (isPlaying) {
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.stop();
-        sourceNodeRef.current.disconnect();
-      }
+      // Pause playback
+      audioElementRef.current.pause();
       
+      // Stop vinyl crackle effect if active
       if (vinylSourceNodeRef.current) {
         vinylSourceNodeRef.current.stop();
         vinylSourceNodeRef.current.disconnect();
       }
       
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-      
       setIsPlaying(false);
+      isPlayingRef.current = false;
     } else {
-      playAudio();
+      // Start or resume playback
+      audioElementRef.current.playbackRate = effects.isSlowedDown ? playbackRate * 0.8 : playbackRate;
+      audioElementRef.current.play().catch(error => {
+        console.error("Error playing audio:", error);
+        toast({
+          title: "Playback Error",
+          description: "Failed to play audio. Try again.",
+          variant: "destructive",
+        });
+      });
+      
       setIsPlaying(true);
+      isPlayingRef.current = true;
     }
   };
 
@@ -477,24 +495,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
     
-    if (isPlaying) {
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.stop();
-        sourceNodeRef.current.disconnect();
+    // Apply effect change immediately if playing
+    if (isPlaying && audioElementRef.current) {
+      // For slowed down effect, update playback rate immediately
+      if (effect === 'isSlowedDown') {
+        const wasSlowedDown = !effects.isSlowedDown;
+        audioElementRef.current.playbackRate = wasSlowedDown ? playbackRate : playbackRate * 0.8;
       }
       
-      if (vinylSourceNodeRef.current) {
-        vinylSourceNodeRef.current.stop();
-        vinylSourceNodeRef.current.disconnect();
-      }
-      
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-      
-      setTimeout(() => {
-        playAudio();
-      }, 50);
+      // Other effects would need Web Audio API processing
+      // which we'll enhance in future updates
     }
   };
 
@@ -502,24 +512,26 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const updatePlaybackRate = (rate: number) => {
     setPlaybackRate(rate);
     
-    if (isPlaying && sourceNodeRef.current) {
+    // Apply new rate immediately if playing
+    if (isPlaying && audioElementRef.current) {
       const actualRate = effects.isSlowedDown ? rate * 0.8 : rate;
-      sourceNodeRef.current.playbackRate.value = actualRate;
+      audioElementRef.current.playbackRate = actualRate;
     }
   };
 
   // Seek to position in audio
   const seekTo = (time: number) => {
-    if (!audioContextRef.current || !audioBuffer) return;
+    if (!audioElementRef.current || !audioSrc) return;
     
+    // Calculate target time in seconds
     const seekTime = (time / 100) * duration;
-    pausedTimeRef.current = seekTime;
+    
+    // Set audio element to target time
+    audioElementRef.current.currentTime = seekTime;
+    
+    // Update state
     setCurrentTime(seekTime);
     setProgress(time);
-    
-    if (isPlaying) {
-      playAudio();
-    }
   };
 
   return (
