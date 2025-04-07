@@ -13,7 +13,20 @@ const nextConfig = {
   // Add proper API route configuration
   api: {
     bodyParser: true,
-  }
-};
+  },
+  // Add support for static assets and SVG imports
+  images: {
+    domains: ['*'], // Allow images from all domains
+  },
+  webpack(config) {
+    // Add SVG support
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ["@svgr/webpack"],
+    });
+    
+    return config;
+  },
+}
 
 export default nextConfig;
