@@ -16,17 +16,23 @@ export async function GET(request: Request) {
     return new NextResponse(null, { status: 204, headers });
   }
   
-  // Get the URL from query parameters
-  const { searchParams } = new URL(request.url);
-  const url = searchParams.get('url');
-  
-  if (!url) {
-    return NextResponse.json({ error: "Download URL is required" }, { status: 400, headers });
-  }
-  
   try {
+    // Get the URL from query parameters
+    const { searchParams } = new URL(request.url);
+    const url = searchParams.get('url');
+    
+    if (!url) {
+      return NextResponse.json({ error: "Download URL is required" }, { status: 400, headers });
+    }
+    
     // Fetch the file as an array buffer
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const response = await axios.get(url, { 
+      responseType: 'arraybuffer',
+      headers: {
+        // Add user-agent to avoid being blocked
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     
     // Return the file with appropriate headers
     return new NextResponse(response.data, {
@@ -38,9 +44,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error(`Error downloading song: ${error}`);
+    console.error(`Error downloading song: ${error.message}`);
+    // Ensure we always return JSON for error responses
     return NextResponse.json(
-      { error: "Failed to download song", details: error.message },
+      { error: "Failed to download song", details: error.message || "Unknown error" },
       { status: 500, headers }
     );
   }

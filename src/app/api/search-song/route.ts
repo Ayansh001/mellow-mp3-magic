@@ -37,15 +37,15 @@ export async function GET(request: Request) {
     return new NextResponse(null, { status: 204, headers });
   }
   
-  // Get the URL to extract query parameters
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q');
-  
-  if (!query) {
-    return NextResponse.json({ error: "Search query is required" }, { status: 400, headers });
-  }
-  
   try {
+    // Get the URL to extract query parameters
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q');
+    
+    if (!query) {
+      return NextResponse.json({ error: "Search query is required" }, { status: 400, headers });
+    }
+    
     // Search PagalFree.com
     const searchUrl = `https://pagalfree.com/search/${encodeURIComponent(query)}`;
     console.log(`Searching: ${searchUrl}`);
@@ -81,15 +81,17 @@ export async function GET(request: Request) {
       };
     }));
     
+    // Return proper JSON response
     return NextResponse.json({
       query,
       results: songsWithDownloadLinks
     }, { headers });
     
   } catch (error: any) {
-    console.error(`Error searching songs: ${error}`);
+    console.error(`Error searching songs: ${error.message}`);
+    // Ensure we always return JSON
     return NextResponse.json(
-      { error: "Failed to search for songs", details: error.message },
+      { error: "Failed to search for songs", details: error.message || "Unknown error" },
       { status: 500, headers }
     );
   }

@@ -40,7 +40,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [effects, setEffects] = useState<AudioEffects>(() => {
-    // Load effects from localStorage if available
     if (typeof window !== "undefined") {
       const savedEffects = localStorage.getItem("lofi_effects");
       return savedEffects ? JSON.parse(savedEffects) : {
@@ -61,7 +60,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   });
   
   const [playbackRate, setPlaybackRate] = useState(() => {
-    // Load playback rate from localStorage if available
     if (typeof window !== "undefined") {
       const savedRate = localStorage.getItem("lofi_playback_rate");
       return savedRate ? parseFloat(savedRate) : 0.85;
@@ -72,7 +70,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [savedAudioFiles, setSavedAudioFiles] = useState<{name: string, src: string}[]>(() => {
-    // Load saved audio files from localStorage if available
     if (typeof window !== "undefined") {
       const savedFiles = localStorage.getItem("lofi_saved_files");
       return savedFiles ? JSON.parse(savedFiles) : [];
@@ -93,35 +90,38 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const requestRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedTimeRef = useRef<number>(0);
-  const isPlayingRef = useRef<boolean>(false); // Add this ref to track playing state
+  const isPlayingRef = useRef<boolean>(false);
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Save effects to localStorage when they change
   useEffect(() => {
     localStorage.setItem("lofi_effects", JSON.stringify(effects));
   }, [effects]);
 
-  // Save playback rate to localStorage when it changes
   useEffect(() => {
     localStorage.setItem("lofi_playback_rate", playbackRate.toString());
   }, [playbackRate]);
 
-  // Save audio files to localStorage when they change
   useEffect(() => {
     localStorage.setItem("lofi_saved_files", JSON.stringify(savedAudioFiles));
   }, [savedAudioFiles]);
 
-  // Initialize audio element
   useEffect(() => {
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
       
-      // Add event listeners to audio element
       audioElementRef.current.addEventListener('timeupdate', handleTimeUpdate);
       audioElementRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
       audioElementRef.current.addEventListener('ended', handleEnded);
+      audioElementRef.current.addEventListener('play', () => {
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+      });
+      audioElementRef.current.addEventListener('pause', () => {
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      });
     }
     
-    // Try to load last played file if available
     const lastFile = savedAudioFiles[0];
     if (lastFile && !audioSrc) {
       setFileName(lastFile.name);
@@ -132,7 +132,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    // Initialize Web Audio API context
     if (typeof window !== 'undefined' && !audioContextRef.current) {
       try {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -142,7 +141,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
     
     return () => {
-      // Clean up event listeners
       if (audioElementRef.current) {
         audioElementRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         audioElementRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -151,21 +149,22 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audioElementRef.current.src = '';
       }
       
-      // Cancel any animation frames
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current);
       }
       
-      // Close audio context
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
     };
   }, []);
 
-  // Handle time update event from audio element
   const handleTimeUpdate = () => {
-    if (!audioElementRef.current || !isPlaying) return;
+    if (!audioElementRef.current) return;
     
     const currentTime = audioElementRef.current.currentTime;
     const duration = audioElementRef.current.duration || 0;
@@ -174,7 +173,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setProgress((currentTime / duration) * 100);
   };
 
-  // Handle loaded metadata event from audio element
   const handleLoadedMetadata = () => {
     if (!audioElementRef.current) return;
     
@@ -182,7 +180,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setDuration(duration);
   };
 
-  // Handle ended event from audio element
   const handleEnded = () => {
     setIsPlaying(false);
     isPlayingRef.current = false;
@@ -194,11 +191,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Cleanup animation and audio context
   useEffect(() => {
     return () => {
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current);
+      }
+      
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
       }
       
       if (audioContextRef.current) {
@@ -207,12 +207,33 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Sync isPlayingRef with isPlaying state
   useEffect(() => {
-    isPlayingRef.current = isPlaying;
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current);
+      timeUpdateIntervalRef.current = null;
+    }
+
+    if (isPlaying) return;
+
+    if (!isPlaying && audioElementRef.current) {
+      timeUpdateIntervalRef.current = setInterval(() => {
+        if (audioElementRef.current) {
+          const currentTime = audioElementRef.current.currentTime;
+          const duration = audioElementRef.current.duration || 0;
+          
+          setCurrentTime(currentTime);
+          setProgress((currentTime / duration) * 100);
+        }
+      }, 100);
+    }
+
+    return () => {
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+    };
   }, [isPlaying]);
 
-  // Load vinyl noise for crackling effect
   useEffect(() => {
     const loadVinylNoise = async () => {
       try {
@@ -244,7 +265,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     loadVinylNoise();
   }, [toast]);
 
-  // Toggle vinyl crackle effect
   useEffect(() => {
     if (!audioContextRef.current || !isPlaying) return;
 
@@ -273,21 +293,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [effects.isVinylCrackle, isPlaying]);
 
-  // Apply effects when they change
   useEffect(() => {
-    if (!isPlaying || !audioElementRef.current) return;
+    if (!audioElementRef.current) return;
 
-    // Apply playback rate
     const actualRate = effects.isSlowedDown ? playbackRate * 0.8 : playbackRate;
     audioElementRef.current.playbackRate = actualRate;
-    
-    // Since we're using the built-in audio element now,
-    // we'll need to manage other effects differently
-    // (future enhancement would be to connect audio element to Web Audio API
-    // for more advanced effects processing)
-  }, [effects, playbackRate, isPlaying]);
+  }, [effects, playbackRate]);
 
-  // Create impulse response for reverb effect
   const createImpulseResponse = (ctx: AudioContext, duration: number = 2) => {
     const sampleRate = ctx.sampleRate;
     const length = sampleRate * duration;
@@ -306,10 +318,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     return impulse;
   };
 
-  // Load audio from file
   const loadAudio = async (file: File) => {
     try {
-      // Initialize audio context if needed
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         
@@ -318,41 +328,33 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Create file reader to read file
       const reader = new FileReader();
       
       reader.onload = async (e) => {
         try {
           const arrayBuffer = e.target?.result as ArrayBuffer;
           
-          // Decode audio data for buffer processing
           const decodedBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer);
           setAudioBuffer(decodedBuffer);
           setDuration(decodedBuffer.duration);
           setFileName(file.name);
           
-          // Create blob URL for HTML Audio element
           const blobUrl = URL.createObjectURL(file);
           setAudioSrc(blobUrl);
           
-          // Set up audio element with the file
           if (audioElementRef.current) {
             audioElementRef.current.src = blobUrl;
             audioElementRef.current.load();
           }
           
-          // Reset playback state
           setIsPlaying(false);
           isPlayingRef.current = false;
           setCurrentTime(0);
           setProgress(0);
           
-          // Save to local storage for future use
           setSavedAudioFiles(prev => {
-            // Remove if already exists to avoid duplicates
             const filtered = prev.filter(item => item.name !== file.name);
-            // Add new file at the beginning (most recent)
-            return [{ name: file.name, src: blobUrl }, ...filtered].slice(0, 10); // Limit to 10 files
+            return [{ name: file.name, src: blobUrl }, ...filtered].slice(0, 10);
           });
           
           toast({
@@ -384,7 +386,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         });
       };
       
-      // Start reading the file
       reader.readAsArrayBuffer(file);
       
     } catch (error) {
@@ -397,32 +398,32 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Load saved audio from localStorage
   const loadSavedAudio = (src: string, name: string) => {
     try {
-      // Set file information
       setFileName(name);
       setAudioSrc(src);
       
-      // Reset playback state
       setIsPlaying(false);
       isPlayingRef.current = false;
       setCurrentTime(0);
       setProgress(0);
       
-      // Set up audio element with saved audio
       if (audioElementRef.current) {
-        audioElementRef.current.pause(); // Ensure previous audio is stopped
+        audioElementRef.current.pause();
         audioElementRef.current.src = src;
         audioElementRef.current.load();
         
-        // Get duration once metadata is loaded
         audioElementRef.current.onloadedmetadata = () => {
           setDuration(audioElementRef.current?.duration || 0);
         };
       }
       
-      // Also fetch the file as ArrayBuffer to decode for Web Audio API
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume().catch(err => {
+          console.error("Error resuming audio context:", err);
+        });
+      }
+      
       fetch(src)
         .then(response => response.arrayBuffer())
         .then(arrayBuffer => {
@@ -455,15 +456,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Toggle play/pause
   const togglePlayPause = () => {
     if (!audioElementRef.current || !audioSrc) return;
     
     if (isPlaying) {
-      // Pause playback
       audioElementRef.current.pause();
       
-      // Stop vinyl crackle effect if active
       if (vinylSourceNodeRef.current) {
         vinylSourceNodeRef.current.stop();
         vinylSourceNodeRef.current.disconnect();
@@ -472,7 +470,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       setIsPlaying(false);
       isPlayingRef.current = false;
     } else {
-      // Start or resume playback
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        audioContextRef.current.resume().catch(err => {
+          console.error("Error resuming audio context:", err);
+        });
+      }
+      
       audioElementRef.current.playbackRate = effects.isSlowedDown ? playbackRate * 0.8 : playbackRate;
       audioElementRef.current.play().catch(error => {
         console.error("Error playing audio:", error);
@@ -488,48 +491,36 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Toggle audio effects
   const toggleEffect = (effect: keyof AudioEffects) => {
     setEffects(prev => {
       const updated = { ...prev, [effect]: !prev[effect] };
       return updated;
     });
     
-    // Apply effect change immediately if playing
-    if (isPlaying && audioElementRef.current) {
-      // For slowed down effect, update playback rate immediately
+    if (audioElementRef.current) {
       if (effect === 'isSlowedDown') {
-        const wasSlowedDown = !effects.isSlowedDown;
-        audioElementRef.current.playbackRate = wasSlowedDown ? playbackRate : playbackRate * 0.8;
+        const willBeSlowedDown = !effects.isSlowedDown;
+        audioElementRef.current.playbackRate = willBeSlowedDown ? playbackRate * 0.8 : playbackRate;
       }
-      
-      // Other effects would need Web Audio API processing
-      // which we'll enhance in future updates
     }
   };
 
-  // Update playback rate
   const updatePlaybackRate = (rate: number) => {
     setPlaybackRate(rate);
     
-    // Apply new rate immediately if playing
-    if (isPlaying && audioElementRef.current) {
+    if (audioElementRef.current) {
       const actualRate = effects.isSlowedDown ? rate * 0.8 : rate;
       audioElementRef.current.playbackRate = actualRate;
     }
   };
 
-  // Seek to position in audio
   const seekTo = (time: number) => {
     if (!audioElementRef.current || !audioSrc) return;
     
-    // Calculate target time in seconds
     const seekTime = (time / 100) * duration;
     
-    // Set audio element to target time
     audioElementRef.current.currentTime = seekTime;
     
-    // Update state
     setCurrentTime(seekTime);
     setProgress(time);
   };

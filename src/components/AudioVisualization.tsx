@@ -19,75 +19,68 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const isConnectedRef = useRef<boolean>(false);
   
-  // Create and connect audio nodes when component mounts or audio element changes
+  // Create audio context when component mounts
   useEffect(() => {
-    if (!audioElement) return;
+    if (typeof window === "undefined") return;
     
-    // Cleanup function to handle component unmounting
-    const cleanup = () => {
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-      }
-      
+    try {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyzerRef.current = audioContextRef.current.createAnalyser();
+      analyzerRef.current.fftSize = 256;
+    } catch (error) {
+      console.error("Failed to create audio context:", error);
+    }
+    
+    return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
+        audioContextRef.current = null;
       }
       
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
+  }, []);
+  
+  // Handle connecting/disconnecting audio element when it changes
+  useEffect(() => {
+    // Clean up previous connections
+    const cleanup = () => {
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+      }
+      isConnectedRef.current = false;
+    };
     
-    // Try to create audio context
-    try {
-      // Cleanup previous connections
+    if (!audioElement || !audioContextRef.current || !analyzerRef.current) {
+      cleanup();
+      return;
+    }
+    
+    // Only create new connections if element changed or not connected
+    if (!isConnectedRef.current) {
       cleanup();
       
-      // Create new audio context and analyzer
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      analyzerRef.current = audioContextRef.current.createAnalyser();
-      
-      // Configure the analyzer
-      analyzerRef.current.fftSize = 256;
-      
-      // Connect to audio element if playing
-      if (isPlaying) {
+      try {
+        // Create new connection
         sourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
         sourceRef.current.connect(analyzerRef.current);
         analyzerRef.current.connect(audioContextRef.current.destination);
+        isConnectedRef.current = true;
+      } catch (error) {
+        // This might happen if the audioElement is already connected
+        console.error("Error connecting audio element:", error);
       }
-    } catch (error) {
-      console.error("Error setting up audio visualization:", error);
     }
     
-    // Cleanup on unmount
+    // Cleanup when component unmounts
     return cleanup;
   }, [audioElement]);
-  
-  // Handle connecting/disconnecting based on playback state
-  useEffect(() => {
-    if (!audioElement || !audioContextRef.current) return;
-    
-    const tryConnect = () => {
-      // Only create new connections if not already connected
-      if (!sourceRef.current && isPlaying) {
-        try {
-          sourceRef.current = audioContextRef.current!.createMediaElementSource(audioElement);
-          sourceRef.current.connect(analyzerRef.current!);
-          analyzerRef.current!.connect(audioContextRef.current!.destination);
-        } catch (error) {
-          console.error("Error connecting audio nodes:", error);
-        }
-      }
-    };
-    
-    tryConnect();
-    
-    // No explicit disconnect needed as that would break audio playback
-    // We'll handle cleanup in the main audioElement effect
-    
-  }, [isPlaying, audioElement]);
   
   // Handle visualization rendering
   useEffect(() => {
