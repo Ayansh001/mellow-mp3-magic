@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -188,4 +189,5 @@ export function useToast() {
   }
 }
 
-export type ToasterProps = React.ComponentPropsWithoutRef<typeof Toaster>
+// Fixed: Remove reference to Toaster component that doesn't exist in this file
+export type ToasterProps = React.ComponentPropsWithoutRef<any>

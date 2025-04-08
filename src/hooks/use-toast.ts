@@ -7,5 +7,6 @@ export type {
   Toast,
   ToasterProps,
   ToasterToast,
+  // Fixed: Import ToastProps from the correct location
   ToastProps,
-} from "@/components/ui/use-toast";
+} from "@/components/ui/toast";
