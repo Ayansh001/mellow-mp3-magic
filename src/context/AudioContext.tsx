@@ -1,5 +1,8 @@
+"use client";
+
 import { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { isBrowser, getAudioContext } from "@/lib/is-browser";
 
 type AudioEffects = {
   isLofiMode: boolean;
@@ -40,7 +43,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [effects, setEffects] = useState<AudioEffects>(() => {
-    if (typeof window !== "undefined") {
+    if (isBrowser) {
       const savedEffects = localStorage.getItem("lofi_effects");
       return savedEffects ? JSON.parse(savedEffects) : {
         isLofiMode: false,
@@ -60,7 +63,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   });
   
   const [playbackRate, setPlaybackRate] = useState(() => {
-    if (typeof window !== "undefined") {
+    if (isBrowser) {
       const savedRate = localStorage.getItem("lofi_playback_rate");
       return savedRate ? parseFloat(savedRate) : 0.85;
     }
@@ -70,7 +73,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [savedAudioFiles, setSavedAudioFiles] = useState<{name: string, src: string}[]>(() => {
-    if (typeof window !== "undefined") {
+    if (isBrowser) {
       const savedFiles = localStorage.getItem("lofi_saved_files");
       return savedFiles ? JSON.parse(savedFiles) : [];
     }
@@ -94,18 +97,26 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    localStorage.setItem("lofi_effects", JSON.stringify(effects));
+    if (isBrowser) {
+      localStorage.setItem("lofi_effects", JSON.stringify(effects));
+    }
   }, [effects]);
 
   useEffect(() => {
-    localStorage.setItem("lofi_playback_rate", playbackRate.toString());
+    if (isBrowser) {
+      localStorage.setItem("lofi_playback_rate", playbackRate.toString());
+    }
   }, [playbackRate]);
 
   useEffect(() => {
-    localStorage.setItem("lofi_saved_files", JSON.stringify(savedAudioFiles));
+    if (isBrowser) {
+      localStorage.setItem("lofi_saved_files", JSON.stringify(savedAudioFiles));
+    }
   }, [savedAudioFiles]);
 
   useEffect(() => {
+    if (!isBrowser) return;
+    
     if (!audioElementRef.current) {
       audioElementRef.current = new Audio();
       
@@ -132,11 +143,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    if (typeof window !== 'undefined' && !audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } catch (error) {
-        console.error("Failed to create audio context:", error);
+    if (!audioContextRef.current) {
+      const AudioContext = getAudioContext();
+      if (AudioContext) {
+        try {
+          audioContextRef.current = new AudioContext();
+        } catch (error) {
+          console.error("Failed to create audio context:", error);
+        }
       }
     }
     
@@ -320,11 +334,23 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const loadAudio = async (file: File) => {
     try {
+      if (!isBrowser) return;
+      
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        if (audioContextRef.current.state === "suspended") {
-          await audioContextRef.current.resume();
+        const AudioContext = getAudioContext();
+        if (AudioContext) {
+          audioContextRef.current = new AudioContext();
+          
+          if (audioContextRef.current.state === "suspended") {
+            await audioContextRef.current.resume();
+          }
+        } else {
+          toast({
+            title: "Error",
+            description: "Audio context not supported in your browser",
+            variant: "destructive",
+          });
+          return;
         }
       }
 

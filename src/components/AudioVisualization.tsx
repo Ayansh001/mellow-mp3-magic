@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useRef, useEffect } from "react";
 import { useAudio } from "@/context/AudioContext";
 import { useTheme } from "@/context/ThemeContext";
+import { isBrowser } from "@/lib/is-browser";
 
 interface AudioVisualizationProps {
   visualizationType?: "bars" | "wave" | "circle";
@@ -23,7 +23,7 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
   
   // Create audio context when component mounts
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!isBrowser) return;
     
     try {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();

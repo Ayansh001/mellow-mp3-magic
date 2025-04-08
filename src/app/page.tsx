@@ -5,12 +5,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import EnhancedHeader from "@/components/EnhancedHeader";
 import Footer from "@/components/Footer";
 import FileUpload from "@/components/FileUpload";
-import EnhancedAudioPlayer from "@/components/EnhancedAudioPlayer";
+import dynamic from "next/dynamic";
 import EnhancedAnimatedBackground from "@/components/EnhancedAnimatedBackground";
 import SongSearch from "@/components/SongSearch";
 import { useAudio } from "@/context/AudioContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+// Use dynamic import for components with browser-only APIs
+const EnhancedAudioPlayer = dynamic(
+  () => import("@/components/EnhancedAudioPlayer"),
+  { ssr: false }
+);
 
 export default function Home() {
   const { fileName } = useAudio();

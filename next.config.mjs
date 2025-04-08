@@ -27,6 +27,14 @@ const nextConfig = {
     
     return config;
   },
+  // Support for browser-only features
+  experimental: {
+    // Support for browser-only features that aren't compatible with SSR
+    appDir: true,
+    serverComponents: true,
+    // This allows Next.js to better handle browser-only APIs
+    serverActions: true,
+  },
 }
 
 export default nextConfig;
