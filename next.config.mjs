@@ -25,6 +25,12 @@ const nextConfig = {
       use: ["@svgr/webpack"],
     });
     
+    // Add specific handling for CSS
+    config.module.rules.push({
+      test: /\.css$/,
+      use: ['style-loader', 'css-loader', 'postcss-loader'],
+    });
+    
     return config;
   },
   // Support for browser-only features

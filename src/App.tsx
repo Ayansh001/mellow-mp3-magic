@@ -9,6 +9,8 @@ import { AudioProvider } from "@/context/AudioContext";
 import { UserProvider } from "@/context/UserContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+// Import CSS directly here since main.tsx is removed
+import "@/index.css";
 
 const queryClient = new QueryClient();
 

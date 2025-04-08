@@ -7,7 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AudioProvider } from "@/context/AudioContext";
 import { UserProvider } from "@/context/UserContext";
-import "../index.css";
+// Fix the import path to use the correct CSS file path
+import "@/index.css";
 
 interface RootLayoutProps {
   children: React.ReactNode;
