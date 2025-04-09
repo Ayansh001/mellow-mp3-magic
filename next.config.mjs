@@ -10,10 +10,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true, // Set to true to prevent TypeScript errors from failing the build
   },
-  // Add proper API route configuration
-  api: {
-    bodyParser: true,
-  },
   // Add support for static assets and SVG imports
   images: {
     domains: ['*'], // Allow images from all domains
@@ -25,21 +21,11 @@ const nextConfig = {
       use: ["@svgr/webpack"],
     });
     
-    // Add specific handling for CSS
-    config.module.rules.push({
-      test: /\.css$/,
-      use: ['style-loader', 'css-loader', 'postcss-loader'],
-    });
-    
     return config;
   },
-  // Support for browser-only features
+  // Simplified experimental options to avoid warnings
   experimental: {
-    // Support for browser-only features that aren't compatible with SSR
     appDir: true,
-    serverComponents: true,
-    // This allows Next.js to better handle browser-only APIs
-    serverActions: true,
   },
 }
 
