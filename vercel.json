@@ -1,10 +1,10 @@
 
 {
   "version": 2,
+  "framework": "nextjs",
   "buildCommand": "next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
-  "framework": "nextjs",
   "regions": ["iad1"],
   "headers": [
     {
@@ -17,5 +17,4 @@
       ]
     }
   ]
-  /* Removing the builds section as it's causing the error */
 }
