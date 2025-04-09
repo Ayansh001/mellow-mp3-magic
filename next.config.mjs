@@ -23,7 +23,7 @@ const nextConfig = {
     
     return config;
   },
-  // Simplified experimental options to avoid warnings
+  // Simplified experimental options
   experimental: {
     appDir: true,
   },
