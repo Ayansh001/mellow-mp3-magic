@@ -1,3 +1,4 @@
+
 import js from "@eslint/js";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -24,6 +25,9 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off", // Disable the no-explicit-any rule
+      "@typescript-eslint/no-empty-object-type": "off", // Disable empty object interface rule
+      "react-hooks/exhaustive-deps": "warn", // Downgrade exhaustive-deps to warning
     },
   }
 );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useEffect } from "react";
@@ -8,6 +9,8 @@ import { isBrowser } from "@/lib/is-browser";
 interface AudioVisualizationProps {
   visualizationType?: "bars" | "wave" | "circle";
 }
+
+type WebAudioContext = typeof window.AudioContext;
 
 const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,7 +29,8 @@ const AudioVisualization = ({ visualizationType = "bars" }: AudioVisualizationPr
     if (!isBrowser) return;
     
     try {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as Record<string, WebAudioContext>).webkitAudioContext;
+      audioContextRef.current = new AudioContextClass();
       analyzerRef.current = audioContextRef.current.createAnalyser();
       analyzerRef.current.fftSize = 256;
     } catch (error) {

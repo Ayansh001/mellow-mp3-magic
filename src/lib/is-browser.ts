@@ -19,12 +19,12 @@ export const withBrowser = <T>(callback: () => T): T | undefined => {
  * Safe way to access browser APIs like AudioContext
  */
 export const getBrowserAPI = <T>(name: string): T | undefined => {
-  return withBrowser(() => (window as any)[name] as T);
+  return withBrowser(() => (window as unknown as Record<string, unknown>)[name] as T);
 };
 
 /**
  * Safely gets AudioContext
  */
 export const getAudioContext = (): typeof window.AudioContext | undefined => {
-  return withBrowser(() => window.AudioContext || (window as any).webkitAudioContext);
+  return withBrowser(() => window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext as typeof window.AudioContext);
 };

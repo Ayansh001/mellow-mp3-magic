@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -103,8 +102,8 @@ const useMockAnalytics = () => {
     });
   };
 
-  // Get top songs
-  const getTopSongs = () => {
+  // Get top songs - memoize with useCallback to prevent unnecessary recreations
+  const getTopSongs = useCallback(() => {
     const songCounts: Record<string, { name: string; count: number }> = {};
     
     listenData.forEach(item => {
@@ -121,7 +120,7 @@ const useMockAnalytics = () => {
         name: song.name.length > 20 ? song.name.substring(0, 17) + "..." : song.name,
         count: song.count
       }));
-  };
+  }, [listenData]);
 
   return {
     recordListen,
@@ -136,7 +135,7 @@ const Analytics = ({ className }: AnalyticsProps) => {
 
   useEffect(() => {
     setTopSongs(getTopSongs());
-  }, []);
+  }, [getTopSongs]); // Now correctly includes the getTopSongs dependency
 
   // Helper to generate empty placeholder data if no real data exists
   const getPlaceholderData = () => {

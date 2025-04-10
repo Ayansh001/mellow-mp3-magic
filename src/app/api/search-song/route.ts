@@ -4,6 +4,11 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { NextResponse } from 'next/server';
 
+// Define error type to avoid using 'any'
+interface ErrorWithMessage {
+  message: string;
+}
+
 // Helper function to extract download links from song pages
 async function extractDownloadLink(songPageUrl: string) {
   try {
@@ -87,11 +92,12 @@ export async function GET(request: Request) {
       results: songsWithDownloadLinks
     }, { headers });
     
-  } catch (error: any) {
-    console.error(`Error searching songs: ${error.message}`);
+  } catch (error) {
+    const errorMessage = error as ErrorWithMessage;
+    console.error(`Error searching songs: ${errorMessage.message || "Unknown error"}`);
     // Ensure we always return JSON
     return NextResponse.json(
-      { error: "Failed to search for songs", details: error.message || "Unknown error" },
+      { error: "Failed to search for songs", details: errorMessage.message || "Unknown error" },
       { status: 500, headers }
     );
   }

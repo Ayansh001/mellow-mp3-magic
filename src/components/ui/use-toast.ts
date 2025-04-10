@@ -189,5 +189,5 @@ export function useToast() {
   }
 }
 
-// Fixed: Remove reference to Toaster component that doesn't exist in this file
-export type ToasterProps = React.ComponentPropsWithoutRef<any>
+// Define a proper component type instead of using 'any'
+export type ToasterProps = React.ComponentPropsWithoutRef<"div">

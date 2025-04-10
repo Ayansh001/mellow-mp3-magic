@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,11 @@ import AudioVisualization from "./AudioVisualization";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const usePlaylistOperations = () => {
+  const { addToPlaylist } = useUser();
+  return { addToPlaylist };
+};
+
 const EnhancedAudioPlayer = () => {
   const {
     isPlaying,
@@ -45,15 +49,14 @@ const EnhancedAudioPlayer = () => {
   } = useAudio();
 
   const { user, isLoggedIn, addToFavorites } = useUser();
+  const { addToPlaylist } = usePlaylistOperations();
   
   const [visualizationType, setVisualizationType] = useState<"bars" | "wave" | "circle">("bars");
   const [showVisualization, setShowVisualization] = useState(false);
   const [selectedPlaylist, setSelectedPlaylist] = useState("");
   
-  // Check if current song is in favorites
   const isFavorited = isLoggedIn && fileName && user?.favorites.includes(fileName);
 
-  // Handle download
   const handleDownload = async () => {
     if (!audioSrc) {
       toast({
@@ -89,7 +92,6 @@ const EnhancedAudioPlayer = () => {
     }
   };
 
-  // Handle share
   const handleShare = () => {
     if (!fileName) {
       toast({
@@ -125,7 +127,6 @@ const EnhancedAudioPlayer = () => {
     }
   };
 
-  // Handle add to favorites
   const handleToggleFavorite = () => {
     if (!isLoggedIn) {
       toast({
@@ -152,11 +153,9 @@ const EnhancedAudioPlayer = () => {
     });
   };
 
-  // Handle add to playlist
   const handleAddToPlaylist = () => {
     if (!selectedPlaylist || !fileName) return;
     
-    const { addToPlaylist } = useUser();
     addToPlaylist(selectedPlaylist, {
       title: fileName,
       artist: "Unknown",
@@ -169,12 +168,10 @@ const EnhancedAudioPlayer = () => {
     });
   };
 
-  // Handle visualization type change
   const handleVisualizationChange = (type: "bars" | "wave" | "circle") => {
     setVisualizationType(type);
   };
 
-  // Handle saved audio selection
   const handleSavedAudioSelect = (index: number) => {
     const savedFile = savedAudioFiles[index];
     if (savedFile) {

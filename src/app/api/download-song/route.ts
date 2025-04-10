@@ -3,6 +3,11 @@
 import axios from 'axios';
 import { NextResponse } from 'next/server';
 
+// Define error type to avoid using 'any'
+interface ErrorWithMessage {
+  message: string;
+}
+
 export async function GET(request: Request) {
   // Set CORS headers
   const headers = {
@@ -43,11 +48,12 @@ export async function GET(request: Request) {
         'Content-Disposition': `attachment; filename="song.mp3"`,
       },
     });
-  } catch (error: any) {
-    console.error(`Error downloading song: ${error.message}`);
+  } catch (error) {
+    const errorMessage = error as ErrorWithMessage;
+    console.error(`Error downloading song: ${errorMessage.message || "Unknown error"}`);
     // Ensure we always return JSON for error responses
     return NextResponse.json(
-      { error: "Failed to download song", details: error.message || "Unknown error" },
+      { error: "Failed to download song", details: errorMessage.message || "Unknown error" },
       { status: 500, headers }
     );
   }
