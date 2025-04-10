@@ -3,7 +3,6 @@
 const nextConfig = {
   // Configure Next.js as needed
   reactStrictMode: true,
-  swcMinify: true,
   // Enable standalone output for Vercel deployment
   output: 'standalone',
   // Handle TypeScript properly
@@ -23,9 +22,9 @@ const nextConfig = {
     
     return config;
   },
-  // Simplified experimental options
+  // Updated experimental options without deprecated flags
   experimental: {
-    appDir: true,
+    // Modern experimental features without deprecated appDir
   },
 }
 
